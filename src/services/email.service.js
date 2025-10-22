@@ -58,15 +58,21 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
  * @returns {Promise}
  */
 exports.sendWelcomeEmail = async (user) => {
-  const subject = 'Bienvenue sur la plateforme Agriculture';
+  const subject = 'Bienvenue sur la plateforme agriTeranga';
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2ecc71;">Bienvenue ${user.firstName} !</h2>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <!-- Logo de la plateforme -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="${env.LOGO_URL}" 
+             alt="Logo agriTeranga" 
+             style="max-width: 150px; height: auto;" />
+      </div>
+      <h2 style="color: #2ecc71; text-align: center;">Bienvenue ${user.firstName} !</h2>
       <p>Nous sommes ravis de vous compter parmi nous.</p>
       <p>Votre compte a été créé avec succès en tant que <strong>${user.role}</strong>.</p>
       <p>Vous pouvez dès maintenant vous connecter et profiter de nos services.</p>
       <br>
-      <p>Cordialement,<br>L'équipe Agriculture</p>
+      <p>Cordialement,<br>L'équipe agriTeranga</p>
     </div>
   `;
 
@@ -90,7 +96,13 @@ exports.sendVerificationEmail = async (user, verificationToken) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
       <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h2 style="color: #2ecc71; text-align: center;">🌾 Bienvenue ${user.firstName} !</h2>
+        <!-- Logo de la plateforme -->
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${env.LOGO_URL}" 
+               alt="Logo agriTeranga" 
+               style="max-width: 150px; height: auto;" />
+        </div>
+        <h2 style="color: #2ecc71; text-align: center;">Bienvenue ${user.firstName} !</h2>
         <p style="font-size: 16px; color: #333;">Merci de vous être inscrit sur notre plateforme agriTeranga.</p>
         <p style="font-size: 16px; color: #333;">Pour activer votre compte et commencer à utiliser nos services, veuillez cliquer sur le bouton ci-dessous :</p>
         
@@ -104,7 +116,7 @@ exports.sendVerificationEmail = async (user, verificationToken) => {
                     border-radius: 5px;
                     font-weight: bold;
                     font-size: 16px;">
-            ✓ Vérifier mon compte
+            Vérifier mon compte
           </a>
         </div>
         
@@ -117,16 +129,16 @@ exports.sendVerificationEmail = async (user, verificationToken) => {
         
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
           <p style="font-size: 13px; color: #999; margin: 5px 0;">
-            ⏱️ Ce lien est valide pendant <strong>24 heures</strong>.
+            <strong>⏱ Durée de validité :</strong> Ce lien est valide pendant 24 heures.
           </p>
           <p style="font-size: 13px; color: #999; margin: 5px 0;">
-            ℹ️ Si vous n'avez pas créé de compte, ignorez cet email.
+            <strong>ℹ Note :</strong> Si vous n'avez pas créé de compte, ignorez cet email.
           </p>
         </div>
         
         <p style="margin-top: 30px; font-size: 14px; color: #555;">
           Cordialement,<br>
-          <strong>L'équipe AgriTeranga</strong>
+          <strong>L'équipe agriTeranga</strong>
         </p>
       </div>
     </div>
@@ -150,8 +162,14 @@ exports.sendPasswordResetEmail = async (user, resetToken) => {
   const resetUrl = `${env.FRONTEND_URL}/reset-password/${resetToken}`;
   const subject = 'Réinitialisation de votre mot de passe';
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #3498db;">Réinitialisation de mot de passe</h2>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <!-- Logo de la plateforme -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="${env.LOGO_URL}" 
+             alt="Logo agriTeranga" 
+             style="max-width: 150px; height: auto;" />
+      </div>
+      <h2 style="color: #3498db; text-align: center;">Réinitialisation de mot de passe</h2>
       <p>Bonjour ${user.firstName},</p>
       <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
       <p>Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe :</p>
@@ -159,7 +177,7 @@ exports.sendPasswordResetEmail = async (user, resetToken) => {
       <p style="margin-top: 20px;">Ce lien est valide pendant 1 heure.</p>
       <p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>
       <br>
-      <p>Cordialement,<br>L'équipe AgriTeranga</p>
+      <p>Cordialement,<br>L'équipe agriTeranga</p>
     </div>
   `;
 
@@ -180,15 +198,21 @@ exports.sendPasswordResetEmail = async (user, resetToken) => {
 exports.sendOrderConfirmationEmail = async (order, user) => {
   const subject = `Confirmation de commande #${order.orderNumber}`;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2ecc71;">Commande confirmée !</h2>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <!-- Logo de la plateforme -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img src="${env.LOGO_URL}" 
+             alt="Logo agriTeranga" 
+             style="max-width: 150px; height: auto;" />
+      </div>
+      <h2 style="color: #2ecc71; text-align: center;">Commande confirmée !</h2>
       <p>Bonjour ${user.firstName},</p>
       <p>Votre commande <strong>#${order.orderNumber}</strong> a été confirmée.</p>
       <p><strong>Montant total :</strong> ${order.totalPrice} FCFA</p>
       <p><strong>Statut :</strong> ${order.status}</p>
       <p>Vous recevrez une notification lorsque votre commande sera prête.</p>
       <br>
-      <p>Cordialement,<br>L'équipe AgriTeranga</p>
+      <p>Cordialement,<br>L'équipe agriTeranga</p>
     </div>
   `;
 

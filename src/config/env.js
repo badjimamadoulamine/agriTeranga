@@ -12,9 +12,9 @@ module.exports = {
   MONGODB_URI: process.env.MONGODB_URI || 'mongodb://localhost:27017/agriculture_db',
 
   // JWT
-  JWT_SECRET: process.env.JWT_SECRET || 'your_jwt_secret_key',
-  JWT_EXPIRE: process.env.JWT_EXPIRE || '7d',
-  JWT_COOKIE_EXPIRE: process.env.JWT_COOKIE_EXPIRE || 7,
+  JWT_SECRET: process.env.JWT_SECRET || 'edeurfbfjrhdkdbfvfjjrdndbddegee',
+  JWT_EXPIRE: process.env.JWT_EXPIRE || '24h',
+  JWT_COOKIE_EXPIRE: process.env.JWT_COOKIE_EXPIRE || 24,
 
   // Email (SMTP)
   SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -22,7 +22,8 @@ module.exports = {
   SMTP_USER: process.env.SMTP_USER,
   SMTP_PASSWORD: process.env.SMTP_PASSWORD,
   FROM_EMAIL: process.env.FROM_EMAIL || process.env.SMTP_USER,
-  FROM_NAME: process.env.FROM_NAME || 'Agriculture Platform',
+  FROM_NAME: process.env.FROM_NAME || 'agriTeranga Platform',
+   LOGO_URL: process.env.LOGO_URL || 'https://via.placeholder.com/150x60/2ecc71/ffffff?text=agriTeranga',
 
   // Frontend
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',

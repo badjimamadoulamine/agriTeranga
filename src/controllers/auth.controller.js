@@ -108,23 +108,41 @@ exports.register = async (req, res) => {
 // Connexion
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    // Vérifier si email et password existent
-    if (!email || !password) {
+    // Vérifier si identifier et password existent
+    if (!identifier || !password) {
       return res.status(400).json({
         status: 'error',
-        message: 'Veuillez fournir un email et un mot de passe'
+        message: 'Veuillez fournir un email/téléphone et un mot de passe'
+      });
+    }
+
+    // Détecter si l'identifiant est un email ou un numéro de téléphone
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+    const isPhone = /^\+?[1-9]\d{1,14}$/.test(identifier); // Format international E.164
+
+    // Construire la requête de recherche
+    let searchQuery;
+    if (isEmail) {
+      searchQuery = { email: identifier };
+    } else if (isPhone) {
+      searchQuery = { phone: identifier };
+    } else {
+      // Si ce n'est ni un email ni un téléphone valide
+      return res.status(400).json({
+        status: 'error',
+        message: 'Format d\'identifiant invalide. Veuillez utiliser un email ou un numéro de téléphone valide.'
       });
     }
 
     // Trouver l'utilisateur et inclure le password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne(searchQuery).select('+password');
 
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({
         status: 'error',
-        message: 'Email ou mot de passe incorrect'
+        message: 'Identifiant ou mot de passe incorrect'
       });
     }
 
@@ -133,6 +151,14 @@ exports.login = async (req, res) => {
       return res.status(401).json({
         status: 'error',
         message: 'Votre compte a été désactivé'
+      });
+    }
+
+    // Vérifier si le compte est supprimé (archivé)
+    if (user.isDeleted) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Ce compte a été supprimé. Contactez le support si vous pensez qu\'il s\'agit d\'une erreur.'
       });
     }
 

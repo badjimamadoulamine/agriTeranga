@@ -227,13 +227,23 @@ exports.deleteAccount = async (req, res) => {
       });
     }
 
-    // Désactiver au lieu de supprimer
-    user.isActive = false;
+    // Vérifier si le compte est déjà supprimé
+    if (user.isDeleted) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Ce compte est déjà supprimé'
+      });
+    }
+
+    // Archiver le compte (soft delete)
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.isActive = false; // Désactiver aussi
     await user.save();
 
     res.status(200).json({
       status: 'success',
-      message: 'Compte désactivé avec succès'
+      message: 'Compte supprimé et archivé avec succès. Vos données ont été conservées conformément à nos politiques.'
     });
   } catch (error) {
     res.status(400).json({

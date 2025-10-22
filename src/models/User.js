@@ -123,6 +123,15 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Système d'archivage (soft delete)
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
   // Champs spécifiques au producteur
   producteurInfo: {
     cultureType: { type: String },
@@ -176,6 +185,16 @@ userSchema.pre('save', async function(next) {
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
+
+// Middleware pour exclure automatiquement les utilisateurs supprimés
+// S'applique à toutes les requêtes find, findOne, etc.
+userSchema.pre(/^find/, function(next) {
+  // Si on veut explicitement inclure les supprimés, on peut passer { includeDeleted: true }
+  if (!this.getOptions().includeDeleted) {
+    this.where({ isDeleted: { $ne: true } });
+  }
+  next();
+});
 
 // Exclure le mot de passe dans les réponses JSON
 userSchema.methods.toJSON = function() {

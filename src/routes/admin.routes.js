@@ -238,6 +238,212 @@ router.get('/stats/users', protect, restrictTo('admin'), adminController.getUser
  */
 router.patch('/formations/:id/toggle-publish', protect, restrictTo('admin'), adminController.toggleFormationPublish);
 
+// ==================== GESTION DES ADMINISTRATEURS ====================
+
+/**
+ * @swagger
+ * /admin/admins:
+ *   post:
+ *     summary: Créer un nouveau compte administrateur (Super Admin uniquement)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - password
+ *               - phone
+ *               - adresse
+ *               - profilePicture
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               adresse:
+ *                 type: string
+ *               profilePicture:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Administrateur créé avec succès
+ *       403:
+ *         description: Seul le super admin peut créer des administrateurs
+ */
+router.post('/admins', protect, restrictTo('admin'), adminController.createAdmin);
+
+/**
+ * @swagger
+ * /admin/admins:
+ *   get:
+ *     summary: Obtenir tous les administrateurs
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: isActive
+ *         schema:
+ *           type: boolean
+ *     responses:
+ *       200:
+ *         description: Liste des administrateurs
+ */
+router.get('/admins', protect, restrictTo('admin'), adminController.getAllAdmins);
+
+/**
+ * @swagger
+ * /admin/admins/{id}/toggle-status:
+ *   patch:
+ *     summary: Bloquer/Débloquer un administrateur (Super Admin uniquement)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Statut de l'administrateur modifié
+ *       403:
+ *         description: Seul le super admin peut bloquer/débloquer des administrateurs
+ */
+router.patch('/admins/:id/toggle-status', protect, restrictTo('admin'), adminController.toggleAdminStatus);
+
+/**
+ * @swagger
+ * /admin/admins/{id}:
+ *   patch:
+ *     summary: Modifier un administrateur (Super Admin uniquement)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               adresse:
+ *                 type: string
+ *               profilePicture:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Administrateur modifié avec succès
+ *       403:
+ *         description: Seul le super admin peut modifier des administrateurs
+ */
+router.patch('/admins/:id', protect, restrictTo('admin'), adminController.updateAdmin);
+
+/**
+ * @swagger
+ * /admin/admins/{id}:
+ *   delete:
+ *     summary: Supprimer/Archiver un administrateur (Super Admin uniquement)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Administrateur supprimé et archivé
+ *       403:
+ *         description: Seul le super admin peut supprimer des administrateurs
+ */
+router.delete('/admins/:id', protect, restrictTo('admin'), adminController.deleteAdmin);
+
+/**
+ * @swagger
+ * /admin/admins/{id}/password:
+ *   patch:
+ *     summary: Modifier le mot de passe d'un administrateur (Super Admin uniquement)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de l'administrateur
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newPassword
+ *               - confirmPassword
+ *             properties:
+ *               newPassword:
+ *                 type: string
+ *                 description: Nouveau mot de passe (minimum 8 caractères)
+ *               confirmPassword:
+ *                 type: string
+ *                 description: Confirmation du nouveau mot de passe
+ *     responses:
+ *       200:
+ *         description: Mot de passe modifié avec succès
+ *       400:
+ *         description: Les mots de passe ne correspondent pas ou sont invalides
+ *       403:
+ *         description: Seul le super admin peut modifier les mots de passe des administrateurs
+ *       404:
+ *         description: Administrateur non trouvé
+ */
+router.patch('/admins/:id/password', protect, restrictTo('admin'), adminController.updateAdminPassword);
+
 module.exports = router;
 
 console.log(' Routes Livraison, Messages, Formations et Admin créées avec succès !');

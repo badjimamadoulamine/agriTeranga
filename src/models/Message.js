@@ -32,4 +32,4 @@ const messageSchema = new mongoose.Schema({
 // Index pour optimiser les requêtes
 messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Message', messageSchema);
+module.exports = mongoose.models.Message || mongoose.model('Message', messageSchema);

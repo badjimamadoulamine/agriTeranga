@@ -14,7 +14,7 @@ const signToken = (id) => {
 // Inscription
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, phone, role, profilePicture, producteurInfo, consumerInfo, livreurInfo } = req.body;
+    const { firstName, lastName, email, password, phone, adresse, role, profilePicture, producteurInfo, consumerInfo, livreurInfo } = req.body;
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await User.findOne({ email });
@@ -56,6 +56,7 @@ exports.register = async (req, res) => {
       email,
       password,
       phone,
+      adresse,
       role,
       profilePicture,
       isVerified: false // Compte non vérifié par défaut

@@ -13,6 +13,7 @@ const bcrypt = require('bcryptjs');
  *         - email
  *         - password
  *         - phone
+ *         - adresse
  *         - profilePicture
  *         - role
  *       properties:
@@ -29,6 +30,9 @@ const bcrypt = require('bcryptjs');
  *         phone:
  *           type: string
  *           description: Numéro de téléphone (REQUIS pour tous)
+ *         adresse:
+ *           type: string
+ *           description: Adresse complète (REQUIS pour tous)
  *         profilePicture:
  *           type: string
  *           description: URL de la photo de profil (REQUIS pour tous)
@@ -36,6 +40,9 @@ const bcrypt = require('bcryptjs');
  *           type: string
  *           enum: [consommateur, producteur, livreur, admin]
  *           description: Rôle de l'utilisateur
+ *         isSuperAdmin:
+ *           type: boolean
+ *           description: Indique si c'est l'administrateur par défaut (super admin)
  *         producteurInfo:
  *           type: object
  *           description: Informations spécifiques au producteur
@@ -43,20 +50,14 @@ const bcrypt = require('bcryptjs');
  *             cultureType:
  *               type: string
  *               description: Type de culture
- *             region:
- *               type: string
- *               description: Région/Localité
  *             farmSize:
  *               type: string
  *               description: Taille de l'exploitation
- *             description:
- *               type: string
- *               description: Description de l'activité
  *             certificates:
  *               type: array
  *               items:
  *                 type: string
- *               description: Documents ou certificats (optionnels)
+ *               description: URLs d'images de certificats (optionnel)
  *         livreurInfo:
  *           type: object
  *           description: Informations spécifiques au livreur
@@ -77,7 +78,6 @@ const bcrypt = require('bcryptjs');
  *               type: boolean
  *               description: Disponibilité du livreur
  */
-
 const userSchema = new mongoose.Schema({
   firstName: {
     type: String,
@@ -106,6 +106,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Le numéro de téléphone est requis']
   },
+  adresse: {
+    type: String,
+    required: [true, 'L\'adresse est requise'],
+    trim: true
+  },
   role: {
     type: String,
     enum: ['consommateur', 'producteur', 'livreur', 'admin'],
@@ -123,6 +128,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Indique si c'est l'administrateur par défaut (super admin)
+  isSuperAdmin: {
+    type: Boolean,
+    default: false
+  },
   // Système d'archivage (soft delete)
   isDeleted: {
     type: Boolean,
@@ -135,10 +145,8 @@ const userSchema = new mongoose.Schema({
   // Champs spécifiques au producteur
   producteurInfo: {
     cultureType: { type: String },
-    region: { type: String },
     farmSize: { type: String },
-    description: { type: String },
-    certificates: [{ type: String }]
+    certificates: [{ type: String }] // URLs d'images de certificats (optionnel)
   },
   // Champs spécifiques au livreur
   livreurInfo: {
@@ -205,4 +213,5 @@ userSchema.methods.toJSON = function() {
   return obj;
 };
 
-module.exports = mongoose.model('User', userSchema);
+// Vérifier si le modèle existe déjà pour éviter l'erreur avec nodemon
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);

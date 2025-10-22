@@ -62,10 +62,10 @@ const formationSchema = new mongoose.Schema({
   }],
   isPublished: {
     type: Boolean,
-    default: true  //Les formations seront publiées par défaut
+    default: true // Publié par défaut
   }
 }, {
   timestamps: true
 });
 
-module.exports = mongoose.model('Formation', formationSchema);
+module.exports = mongoose.models.Formation || mongoose.model('Formation', formationSchema);

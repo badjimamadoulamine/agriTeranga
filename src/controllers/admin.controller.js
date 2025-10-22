@@ -532,3 +532,386 @@ exports.toggleFormationPublish = async (req, res) => {
   }
 };
 
+// ==================== GESTION DES ADMINISTRATEURS ====================
+
+// Créer un nouveau compte admin
+exports.createAdmin = async (req, res) => {
+  try {
+    // Vérifier que l'admin connecté est le super admin
+    const currentAdmin = await User.findById(req.user.id);
+    if (!currentAdmin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seul l\'administrateur par défaut peut créer d\'autres administrateurs'
+      });
+    }
+
+    const { firstName, lastName, email, password, phone, adresse, profilePicture } = req.body;
+
+    // Vérifier si l'email existe déjà
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'Cet email est déjà utilisé'
+      });
+    }
+
+    // Créer l'admin
+    const admin = await User.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      adresse,
+      profilePicture,
+      role: 'admin',
+      isVerified: true, // Admin vérifié automatiquement
+      isActive: true,
+      isSuperAdmin: false // Les admins créés ne sont jamais des super admins
+    });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'Administrateur créé avec succès',
+      data: {
+        admin
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Obtenir tous les administrateurs
+exports.getAllAdmins = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search, isActive } = req.query;
+
+    const query = { role: 'admin' };
+    
+    if (isActive !== undefined) {
+      query.isActive = isActive === 'true';
+    }
+
+    if (search) {
+      query.$or = [
+        { firstName: new RegExp(search, 'i') },
+        { lastName: new RegExp(search, 'i') },
+        { email: new RegExp(search, 'i') }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const admins = await User.find(query)
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await User.countDocuments(query);
+
+    res.status(200).json({
+      status: 'success',
+      results: admins.length,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit),
+      data: {
+        admins
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Bloquer/Débloquer un administrateur
+exports.toggleAdminStatus = async (req, res) => {
+  try {
+    // Vérifier que l'admin connecté est le super admin
+    const currentAdmin = await User.findById(req.user.id);
+    if (!currentAdmin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seul l\'administrateur par défaut peut bloquer/débloquer des administrateurs'
+      });
+    }
+
+    const admin = await User.findById(req.params.id);
+
+    if (!admin) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Administrateur non trouvé'
+      });
+    }
+
+    // Vérifier que c'est bien un admin
+    if (admin.role !== 'admin') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cet utilisateur n\'est pas un administrateur'
+      });
+    }
+
+    // Empêcher de se désactiver soi-même
+    if (admin._id.toString() === req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Vous ne pouvez pas désactiver votre propre compte'
+      });
+    }
+
+    // Empêcher de désactiver un autre super admin
+    if (admin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Impossible de désactiver un super administrateur'
+      });
+    }
+
+    // Basculer le statut
+    admin.isActive = !admin.isActive;
+    await admin.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: `Administrateur ${admin.isActive ? 'activé' : 'désactivé'} avec succès`,
+      data: {
+        admin
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Modifier un administrateur
+exports.updateAdmin = async (req, res) => {
+  try {
+    // Vérifier que l'admin connecté est le super admin
+    const currentAdmin = await User.findById(req.user.id);
+    if (!currentAdmin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seul l\'administrateur par défaut peut modifier d\'autres administrateurs'
+      });
+    }
+
+    const { firstName, lastName, email, phone, adresse, profilePicture } = req.body;
+
+    const admin = await User.findById(req.params.id);
+
+    if (!admin) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Administrateur non trouvé'
+      });
+    }
+
+    // Vérifier que c'est bien un admin
+    if (admin.role !== 'admin') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cet utilisateur n\'est pas un administrateur'
+      });
+    }
+
+    // Vérifier si l'email est déjà utilisé par un autre utilisateur
+    if (email && email !== admin.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(409).json({
+          status: 'error',
+          message: 'Cet email est déjà utilisé'
+        });
+      }
+    }
+
+    // Mettre à jour les champs
+    if (firstName) admin.firstName = firstName;
+    if (lastName) admin.lastName = lastName;
+    if (email) admin.email = email;
+    if (phone) admin.phone = phone;
+    if (adresse) admin.adresse = adresse;
+    if (profilePicture) admin.profilePicture = profilePicture;
+
+    await admin.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Administrateur modifié avec succès',
+      data: {
+        admin
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Supprimer/Archiver un administrateur
+exports.deleteAdmin = async (req, res) => {
+  try {
+    // Vérifier que l'admin connecté est le super admin
+    const currentAdmin = await User.findById(req.user.id);
+    if (!currentAdmin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seul l\'administrateur par défaut peut supprimer d\'autres administrateurs'
+      });
+    }
+
+    const admin = await User.findById(req.params.id);
+
+    if (!admin) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Administrateur non trouvé'
+      });
+    }
+
+    // Vérifier que c'est bien un admin
+    if (admin.role !== 'admin') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cet utilisateur n\'est pas un administrateur'
+      });
+    }
+
+    // Empêcher de se supprimer soi-même
+    if (admin._id.toString() === req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Vous ne pouvez pas supprimer votre propre compte'
+      });
+    }
+
+    // Empêcher de supprimer un autre super admin
+    if (admin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Impossible de supprimer un super administrateur'
+      });
+    }
+
+    // Vérifier si le compte est déjà supprimé
+    if (admin.isDeleted) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Ce compte est déjà supprimé'
+      });
+    }
+
+    // Archiver le compte (soft delete)
+    admin.isDeleted = true;
+    admin.deletedAt = new Date();
+    admin.isActive = false;
+    await admin.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Administrateur supprimé et archivé avec succès'
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Modifier le mot de passe d'un administrateur
+exports.updateAdminPassword = async (req, res) => {
+  try {
+    const { newPassword, confirmPassword } = req.body;
+
+    // Vérifier que l'admin connecté est le super admin
+    const currentAdmin = await User.findById(req.user.id);
+    if (!currentAdmin.isSuperAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Seul l\'administrateur par défaut peut modifier les mots de passe des autres administrateurs'
+      });
+    }
+
+    // Vérifier que les champs sont fournis
+    if (!newPassword || !confirmPassword) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Veuillez fournir le nouveau mot de passe et sa confirmation'
+      });
+    }
+
+    // Vérifier que les mots de passe correspondent
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Les mots de passe ne correspondent pas'
+      });
+    }
+
+    // Vérifier la longueur du mot de passe
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Le mot de passe doit contenir au moins 8 caractères'
+      });
+    }
+
+    const admin = await User.findById(req.params.id);
+
+    if (!admin) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Administrateur non trouvé'
+      });
+    }
+
+    // Vérifier que c'est bien un admin
+    if (admin.role !== 'admin') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Cet utilisateur n\'est pas un administrateur'
+      });
+    }
+
+    // Empêcher de modifier son propre mot de passe via cette route
+    // (utiliser la route normale de changement de mot de passe)
+    if (admin._id.toString() === req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Pour modifier votre propre mot de passe, utilisez la route /api/auth/update-password'
+      });
+    }
+
+    // Mettre à jour le mot de passe
+    admin.password = newPassword;
+    await admin.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Mot de passe de l\'administrateur modifié avec succès'
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+

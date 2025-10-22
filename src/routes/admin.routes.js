@@ -215,6 +215,29 @@ router.get('/stats/sales', protect, restrictTo('admin'), adminController.getSale
  */
 router.get('/stats/users', protect, restrictTo('admin'), adminController.getUserStats);
 
+/**
+ * @swagger
+ * /admin/formations/{id}/toggle-publish:
+ *   patch:
+ *     summary: Publier/Dépublier une formation
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la formation
+ *     responses:
+ *       200:
+ *         description: Statut de publication modifié
+ *       404:
+ *         description: Formation non trouvée
+ */
+router.patch('/formations/:id/toggle-publish', protect, restrictTo('admin'), adminController.toggleFormationPublish);
+
 module.exports = router;
 
 console.log(' Routes Livraison, Messages, Formations et Admin créées avec succès !');

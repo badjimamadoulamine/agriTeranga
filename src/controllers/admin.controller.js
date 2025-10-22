@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const Delivery = require('../models/Delivery');
+const Formation = require('../models/Formation');
 
 // Tableau de bord - Statistiques globales
 exports.getDashboard = async (req, res) => {
@@ -490,6 +491,37 @@ exports.getUserStats = async (req, res) => {
         newUsersByMonth,
         topProducers,
         topDeliverers
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Publier/Dépublier une formation
+exports.toggleFormationPublish = async (req, res) => {
+  try {
+    const formation = await Formation.findById(req.params.id);
+
+    if (!formation) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Formation non trouvée'
+      });
+    }
+
+    // Inverser le statut de publication
+    formation.isPublished = !formation.isPublished;
+    await formation.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: `Formation ${formation.isPublished ? 'publiée' : 'dépubliée'} avec succès`,
+      data: {
+        formation
       }
     });
   } catch (error) {

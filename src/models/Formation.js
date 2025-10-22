@@ -62,7 +62,7 @@ const formationSchema = new mongoose.Schema({
   }],
   isPublished: {
     type: Boolean,
-    default: false
+    default: true  //Les formations seront publiées par défaut
   }
 }, {
   timestamps: true

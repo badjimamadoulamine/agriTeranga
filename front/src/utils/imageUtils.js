@@ -38,8 +38,25 @@ export const isValidImageFile = (file) => {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1'
 const API_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+$/, '')
 
+// Fallback avatar (inline SVG) pour éviter toute requête réseau externe
+const DEFAULT_AVATAR_DATA =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#16a34a"/>
+          <stop offset="100%" stop-color="#22c55e"/>
+        </linearGradient>
+      </defs>
+      <rect width="150" height="150" fill="url(#g)"/>
+      <circle cx="75" cy="55" r="28" fill="#ffffff" opacity="0.9"/>
+      <rect x="35" y="92" width="80" height="36" rx="18" fill="#ffffff" opacity="0.9"/>
+    </svg>
+  `)
+
 export const getProfilePictureUrl = (profilePicture) => {
-  if (!profilePicture) return 'https://via.placeholder.com/150x150?text=Photo'
+  if (!profilePicture) return DEFAULT_AVATAR_DATA
   // Absolute URL already
   if (/^https?:\/\//i.test(profilePicture)) return profilePicture
   // Data URL (preview/base64)

@@ -10,20 +10,22 @@ const authService = {
   // Vérification email
   verifyEmail: async (token) => {
     const response = await api.get(`/auth/verify-email/${token}`)
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
+    const apiUser = response.data?.data?.user || response.data?.user
+    const apiToken = response.data?.token
+    if (apiToken && apiUser) {
+      localStorage.setItem('token', apiToken)
+      localStorage.setItem('user', JSON.stringify(apiUser))
       // Stocker aussi les tokens spécifiques selon le rôle
-      const role = response.data.user?.role
+      const role = apiUser?.role
       if (role === 'admin') {
-        localStorage.setItem('adminDashboardToken', response.data.token)
-        localStorage.setItem('adminDashboardUser', JSON.stringify(response.data.user))
+        localStorage.setItem('adminDashboardToken', apiToken)
+        localStorage.setItem('adminDashboardUser', JSON.stringify(apiUser))
       } else if (role === 'producteur') {
-        localStorage.setItem('producerDashboardToken', response.data.token)
-        localStorage.setItem('producerDashboardUser', JSON.stringify(response.data.user))
+        localStorage.setItem('producerDashboardToken', apiToken)
+        localStorage.setItem('producerDashboardUser', JSON.stringify(apiUser))
       } else if (role === 'livreur') {
-        localStorage.setItem('deliveryDashboardToken', response.data.token)
-        localStorage.setItem('deliveryDashboardUser', JSON.stringify(response.data.user))
+        localStorage.setItem('deliveryDashboardToken', apiToken)
+        localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
       }
     }
     return response.data
@@ -32,20 +34,22 @@ const authService = {
   // Connexion
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials)
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user))
+    const apiUser = response.data?.data?.user || response.data?.user
+    const apiToken = response.data?.token
+    if (apiToken && apiUser) {
+      localStorage.setItem('token', apiToken)
+      localStorage.setItem('user', JSON.stringify(apiUser))
       // Stocker aussi les tokens spécifiques selon le rôle
-      const role = response.data.user?.role
+      const role = apiUser?.role
       if (role === 'admin') {
-        localStorage.setItem('adminDashboardToken', response.data.token)
-        localStorage.setItem('adminDashboardUser', JSON.stringify(response.data.user))
+        localStorage.setItem('adminDashboardToken', apiToken)
+        localStorage.setItem('adminDashboardUser', JSON.stringify(apiUser))
       } else if (role === 'producteur') {
-        localStorage.setItem('producerDashboardToken', response.data.token)
-        localStorage.setItem('producerDashboardUser', JSON.stringify(response.data.user))
+        localStorage.setItem('producerDashboardToken', apiToken)
+        localStorage.setItem('producerDashboardUser', JSON.stringify(apiUser))
       } else if (role === 'livreur') {
-        localStorage.setItem('deliveryDashboardToken', response.data.token)
-        localStorage.setItem('deliveryDashboardUser', JSON.stringify(response.data.user))
+        localStorage.setItem('deliveryDashboardToken', apiToken)
+        localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
       }
     }
     return response.data

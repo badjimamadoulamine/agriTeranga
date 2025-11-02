@@ -64,6 +64,14 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
   }
 }));
 
+// Also serve when uploads are saved under src/uploads (dev environment)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+}));
+
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

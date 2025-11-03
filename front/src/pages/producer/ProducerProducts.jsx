@@ -1,39 +1,38 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import ProducerLayout from '../../layouts/ProducerLayout';
+import apiService from '../../services/apiService';
 
 const ProducerProducts = () => {
-  // Données des produits
-  const products = [
-    {
-      id: 1,
-      name: 'Tomates fraîches',
-      image: '🍅',
-      price: '2 500 CFA / kg',
-      stock: '50 kg',
-    },
-    {
-      id: 2,
-      name: 'Carottes Bio',
-      image: '🥕',
-      price: '1 800 CFA / kg',
-      stock: '35 kg',
-    },
-    {
-      id: 3,
-      name: 'Poivrons',
-      image: '🫑',
-      price: '3 000 CFA / kg',
-      stock: '20 kg',
-    },
-    {
-      id: 4,
-      name: 'Aubergines',
-      image: '🍆',
-      price: '2 200 CFA / kg',
-      stock: '40 kg',
-    },
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await apiService.getProducerProducts(1, 50);
+        const payload = res || {};
+        const list = (payload.data && (payload.data.products || payload.data.docs))
+          || payload.products
+          || Array.isArray(payload) ? payload : [];
+        if (mounted) setProducts(Array.isArray(list) ? list : []);
+      } catch (e) {
+        if (mounted) {
+          setError(e?.message || 'Erreur de chargement');
+          setProducts([]);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
 
   const handleEdit = (productId) => {
     console.log('Edit product:', productId);
@@ -73,16 +72,40 @@ const ProducerProducts = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {products.map((product) => (
+              {loading && (
+                <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-500">Chargement...</td></tr>
+              )}
+              {error && !loading && (
+                <tr><td colSpan={4} className="px-6 py-6 text-center text-red-600">{error}</td></tr>
+              )}
+              {!loading && !error && products.length === 0 && (
+                <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-500">Aucun produit trouvé.</td></tr>
+              )}
+              {!loading && !error && products.map((product) => (
                 <tr
-                  key={product.id}
+                  key={product._id || product.id}
                   className="hover:bg-gray-50 transition-colors"
                 >
                   {/* Product Name with Image */}
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl">
-                        {product.image}
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-2xl overflow-hidden">
+                        {(() => {
+                          const base = import.meta.env.VITE_API_URL;
+                          const origin = (() => { try { return new URL(base).origin } catch { return '' } })();
+                          let src = product.imageUrl || product.image || '';
+                          if (!src && Array.isArray(product.images) && product.images[0]) {
+                            const raw = String(product.images[0] ?? '');
+                            const file = raw.split(/[\\\/]/).pop();
+                            if (file) src = `${origin}/uploads/${file}`;
+                          }
+                          if (src) {
+                            return <img src={src} alt={product.name} className="w-full h-full object-cover" />
+                          }
+                          return (
+                            <span className="text-green-700 font-semibold">{(product.name || '').charAt(0).toUpperCase()}</span>
+                          );
+                        })()}
                       </div>
                       <span className="text-gray-800 font-medium">
                         {product.name}
@@ -91,17 +114,19 @@ const ProducerProducts = () => {
                   </td>
 
                   {/* Price */}
-                  <td className="px-6 py-4 text-gray-700">{product.price}</td>
+                  <td className="px-6 py-4 text-gray-700">
+                    {typeof product.price === 'number' ? `${product.price} CFA` : (product.price || '-')}
+                  </td>
 
                   {/* Stock */}
-                  <td className="px-6 py-4 text-gray-700">{product.stock}</td>
+                  <td className="px-6 py-4 text-gray-700">{product.stock ?? '-'}</td>
 
                   {/* Actions */}
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
                       {/* Edit Button */}
                       <button
-                        onClick={() => handleEdit(product.id)}
+                        onClick={() => handleEdit(product._id || product.id)}
                         className="p-2 hover:bg-green-50 rounded-lg transition-colors group"
                         title="Modifier"
                       >
@@ -110,7 +135,7 @@ const ProducerProducts = () => {
 
                       {/* Delete Button */}
                       <button
-                        onClick={() => handleDelete(product.id)}
+                        onClick={() => handleDelete(product._id || product.id)}
                         className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
                         title="Supprimer"
                       >

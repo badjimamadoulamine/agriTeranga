@@ -1,72 +1,37 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import apiService from '../services/apiService'
 
 const PopularProducts = () => {
-  const products = [
-    {
-      id: 9,
-      name: 'Patate douce',
-      price: '1.100 CFA / kg',
-      seller: 'Alassane NDIAYE',
-      image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=400',
-      discount: '5% off'
-    },
-    {
-      id: 10,
-      name: 'Gombo',
-      price: '1.300 CFA / kg',
-      seller: 'Aminata GUEYE',
-      image: 'https://images.unsplash.com/photo-1597362925123-77861d3fbac7?w=400',
-      discount: '10% off'
-    },
-    {
-      id: 11,
-      name: 'Pastèque',
-      price: '2.500 CFA / Unité',
-      seller: 'Modou DIALLO',
-      image: 'https://images.unsplash.com/photo-1561132180-4b2b4fc7865b?w=400',
-      discount: '5% off'
-    },
-    {
-      id: 12,
-      name: 'Manioc',
-      price: '500 CFA / kg',
-      seller: 'Mame NGUEYE',
-      image: 'https://images.unsplash.com/photo-1588611754815-c9c5cb20c1fd?w=400',
-      discount: '8% off'
-    },
-    {
-      id: 1,
-      name: 'Mangue',
-      price: '1.500 CFA / kg',
-      seller: 'Moussa BA',
-      image: 'https://images.unsplash.com/photo-1553279768-865429fa0078?w=400',
-      discount: '5% off'
-    },
-    {
-      id: 2,
-      name: 'Tomate Grappe Bio',
-      price: '2.000 CFA / kg',
-      seller: 'Aïda TRAORE',
-      image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400',
-      discount: '15% off'
-    },
-    {
-      id: 6,
-      name: 'Carotte',
-      price: '700 CFA / kg',
-      seller: 'Mariam CISSE',
-      image: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=400',
-      discount: '8% off'
-    },
-    {
-      id: 5,
-      name: 'Poivron',
-      price: '1.200 CFA / kg',
-      seller: 'Ibrahima BALDE',
-      image: 'https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=400',
-      discount: '10% off'
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        // Charger des produits populaires/récents (ex: tri décroissant)
+        const res = await apiService.getProducts({ page: 1, limit: 8, sort: '-createdAt' })
+        const payload = res || {}
+        const list = (payload.data && (payload.data.products || payload.data.docs))
+          || payload.products
+          || (Array.isArray(payload) ? payload : [])
+        if (mounted) setProducts(Array.isArray(list) ? list : [])
+      } catch (e) {
+        if (mounted) {
+          setError(e?.message || 'Erreur lors du chargement des produits')
+          setProducts([])
+        }
+      } finally {
+        if (mounted) setLoading(false)
+      }
     }
-  ]
+    load()
+    return () => { mounted = false }
+  }, [])
 
   return (
     <section className="py-16 bg-white">
@@ -81,20 +46,40 @@ const PopularProducts = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
+          {loading && (
+            <div className="col-span-4 text-center text-gray-500">Chargement...</div>
+          )}
+          {error && !loading && (
+            <div className="col-span-4 text-center text-red-600">{error}</div>
+          )}
+          {!loading && !error && products.length === 0 && (
+            <div className="col-span-4 text-center text-gray-500">Aucun produit disponible.</div>
+          )}
+          {!loading && !error && products.map((product) => (
             <Link
-              key={product.id}
-              to={`/produit/${product.id}`}
+              key={product._id || product.id}
+              to={`/produit/${product._id || product.id}`}
               className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden border border-gray-100 group block"
             >
               <div className="relative">
                 <img 
-                  src={product.image} 
+                  src={(() => {
+                    const base = import.meta.env.VITE_API_URL;
+                    const origin = (() => { try { return new URL(base).origin } catch { return '' } })();
+                    if (product.imageUrl) return product.imageUrl;
+                    if (product.image) return product.image;
+                    if (Array.isArray(product.images) && product.images.length > 0) {
+                      const raw = String(product.images[0] ?? '');
+                      const file = raw.split(/[\\\/]/).pop();
+                      if (file) return `${origin}/uploads/${file}`;
+                    }
+                    return '';
+                  })()} 
                   alt={product.name} 
                   className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <span className="absolute top-2 right-2 bg-yellow-400 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  {product.discount}
+                  {product.discount || 'Promo'}
                 </span>
               </div>
               <div className="p-4">
@@ -102,10 +87,13 @@ const PopularProducts = () => {
                   {product.name}
                 </h3>
                 <p className="font-bold text-gray-800 mb-1">
-                  {product.price}
+                  {typeof product.price === 'number' ? `${product.price} CFA` : (product.price || '-')}
                 </p>
                 <p className="text-sm text-gray-500 mb-4">
-                  Par : {product.seller}
+                  Par : {product.seller 
+                    || product.producerName 
+                    || (product.producer && [product.producer.firstName, product.producer.lastName].filter(Boolean).join(' ')) 
+                    || '—'}
                 </p>
                 <button className="w-full bg-gray-100 hover:bg-green-100 text-gray-700 hover:text-green-600 font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

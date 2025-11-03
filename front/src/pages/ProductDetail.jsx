@@ -1,245 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useCartOperations } from '../hooks/useCartOperations';
+import apiService from '../services/apiService';
 
 const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { handleAddToCart } = useCartOperations();
 
-  // Données étendues des produits (basées sur la liste de Produits.jsx)
-  const produitsData = {
-    1: {
-      id: 1,
-      nom: 'Mangue',
-      prix: '1.500',
-      unite: 'kg',
-      description: 'Une mangue juteuse et sucrée, cueillie à maturité pour une saveur optimale. Parfaite pour les desserts, les smoothies ou simplement à dégustation fraîche.',
-      vendeur: 'Moussa BA',
-      evaluation: 4.5,
-      image: '/src/assets/mangue.jpg',
-      imageFallback: '🥭',
-      categorie: 'fruits',
-      bio: false,
-      producteur: {
-        nom: 'Moussa BA',
-        typeCulture: 'Fruitière',
-        certification: 'Agriculture traditionnelle',
-        localisation: 'Dakar, Sénégal'
+  // Données du produit depuis l'API
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const resp = await apiService.getProductDetails(id);
+        const payload = resp || {};
+        const p = (payload.data && (payload.data.product || payload.data)) || payload.product || payload;
+        if (mounted) setProduct(p || null);
+      } catch (e) {
+        if (mounted) {
+          setError(e?.message || 'Erreur de chargement du produit');
+          setProduct(null);
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-    },
-    2: {
-      id: 2,
-      nom: 'Tomate Grappe Bio',
-      prix: '2.000',
-      unite: 'kg',
-      description: 'Tomates bio cultivées sans pesticides, idéales pour vos salades et plats mijotés. Saveur authentique et couleur vive.',
-      vendeur: 'Aïda TRAORE',
-      evaluation: 4.8,
-      image: '/src/assets/tomate.jpg',
-      imageFallback: '🍅',
-      categorie: 'légumes',
-      bio: true,
-      producteur: {
-        nom: 'Aïda TRAORE',
-        typeCulture: 'Légumière Bio',
-        certification: 'AB Certified',
-        localisation: 'Thiès, Sénégal'
-      }
-    },
-    3: {
-      id: 3,
-      nom: 'Pomme de terre',
-      prix: '800',
-      unite: 'kg',
-      description: 'Pommes de terre fraîches et polyvalentes, parfaites pour la cuisine. Idéales en frites, en purée ou cuites au four.',
-      vendeur: 'Ousmane DIALLO',
-      evaluation: 4.3,
-      image: '/src/assets/pomme_terre.jpg',
-      imageFallback: '🥔',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Ousmane DIALLO',
-        typeCulture: 'Tubercules',
-        certification: 'Agriculture locale',
-        localisation: 'Kaolack, Sénégal'
-      }
-    },
-    4: {
-      id: 4,
-      nom: 'Oignon',
-      prix: '600',
-      unite: 'kg',
-      description: 'Oignons frais et aromatiques, essentiels pour relever vos plats. Riches en vitamines et minéraux.',
-      vendeur: 'Fatou SOW',
-      evaluation: 4.1,
-      image: '/src/assets/oignon.jpg',
-      imageFallback: '🧅',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Fatou SOW',
-        typeCulture: 'Légumes aromatiques',
-        certification: 'Agriculture traditionnelle',
-        localisation: 'Saint-Louis, Sénégal'
-      }
-    },
-    5: {
-      id: 5,
-      nom: 'Poivron',
-      prix: '1.200',
-      unite: 'kg',
-      description: 'Poivrons colorés et charnus, parfaits pour farcir, stir-fry ou salade. Saveur douce et texture croquante.',
-      vendeur: 'Ibrahima BALDE',
-      evaluation: 4.6,
-      image: '/src/assets/poivron.jpg',
-      imageFallback: '🫑',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Ibrahima BALDE',
-        typeCulture: 'Légumière sous serre',
-        certification: 'Agriculture intégrée',
-        localisation: 'Kaolack, Sénégal'
-      }
-    },
-    6: {
-      id: 6,
-      nom: 'Carotte',
-      prix: '700',
-      unite: 'kg',
-      description: 'Carottes fraîches et croquantes, riches en bêta-carotène. Idéales crues en salade ou cuites en potage.',
-      vendeur: 'Mariam CISSE',
-      evaluation: 4.4,
-      image: '/src/assets/carotte.jpg',
-      imageFallback: '🥕',
-      categorie: 'légumes',
-      bio: true,
-      producteur: {
-        nom: 'Mariam CISSE',
-        typeCulture: 'Légume racine',
-        certification: 'Bio locale',
-        localisation: 'Thiès, Sénégal'
-      }
-    },
-    7: {
-      id: 7,
-      nom: 'Banane',
-      prix: '1.000',
-      unite: 'kg',
-      description: 'Bananes douces et sucrées, parfaites pour la consommation directe ou pour vos préparations culinaires.',
-      vendeur: 'Abdou WANE',
-      evaluation: 4.2,
-      image: '/src/assets/banane.jpg',
-      imageFallback: '🍌',
-      categorie: 'fruits',
-      bio: false,
-      producteur: {
-        nom: 'Abdou WANE',
-        typeCulture: 'Fruitière tropicale',
-        certification: 'Agriculture durable',
-        localisation: 'Ziguinchor, Sénégal'
-      }
-    },
-    8: {
-      id: 8,
-      nom: 'Aubergine',
-      prix: '900',
-      unite: 'kg',
-      description: 'Aubergines violettes, fermes et savoureuses. Parfaites pour les grillades, ratatouille ou moussaka.',
-      vendeur: 'Khadija MBAYE',
-      evaluation: 4.0,
-      image: '/src/assets/aubergine.jpg',
-      imageFallback: '🍆',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Khadija MBAYE',
-        typeCulture: 'Légumes cultiver',
-        certification: 'Agriculture traditionnelle',
-        localisation: 'Kaolack, Sénégal'
-      }
-    },
-    9: {
-      id: 9,
-      nom: 'Patate douce',
-      prix: '1.100',
-      unite: 'kg',
-      description: 'Patates douces sucrées et riches en nutriments. Excellentes cuites au four, en purée ou en frites.',
-      vendeur: 'Alassane NDIAYE',
-      evaluation: 4.3,
-      image: '/src/assets/patate_douce.jpg',
-      imageFallback: '🍠',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Alassane NDIAYE',
-        typeCulture: 'Tubercules',
-        certification: 'Agriculture locale',
-        localisation: 'Saint-Louis, Sénégal'
-      }
-    },
-    10: {
-      id: 10,
-      nom: 'Gombo',
-      prix: '1.300',
-      unite: 'kg',
-      description: 'Gombos frais et tendres, parfaits pour les soupes et sauces. Riches en fibres et vitamines.',
-      vendeur: 'Aminata GUEYE',
-      evaluation: 4.1,
-      image: '/src/assets/gombo.jpg',
-      imageFallback: '🌿',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Aminata GUEYE',
-        typeCulture: 'Légumes Feuilleux',
-        certification: 'Agriculture traditionnelle',
-        localisation: 'Thiès, Sénégal'
-      }
-    },
-    11: {
-      id: 11,
-      nom: 'Pastèque',
-      prix: '2.500',
-      unite: 'Unité',
-      description: 'Pastèque juteuse et rafraîchissante, parfaite pour se désaltérer. Chair rouge sucrée et riche en eau.',
-      vendeur: 'Modou DIALLO',
-      evaluation: 4.7,
-      image: '/src/assets/pasteque.jpg',
-      imageFallback: '🍉',
-      categorie: 'fruits',
-      bio: false,
-      producteur: {
-        nom: 'Modou DIALLO',
-        typeCulture: 'Fruitière',
-        certification: 'Agriculture locale',
-        localisation: 'Ziguinchor, Sénégal'
-      }
-    },
-    12: {
-      id: 12,
-      nom: 'Manioc',
-      prix: '500',
-      unite: 'kg',
-      description: 'Manioc frais et riche en amidon. Utilisé pour préparer du foufou, de la semoule ou des chipes.',
-      vendeur: 'Mame NGUEYE',
-      evaluation: 3.9,
-      image: '/src/assets/manioc.jpg',
-      imageFallback: '🌱',
-      categorie: 'légumes',
-      bio: false,
-      producteur: {
-        nom: 'Mame NGUEYE',
-        typeCulture: 'Racines et tubercules',
-        certification: 'Agriculture traditionnelle',
-        localisation: 'Dakar, Sénégal'
-      }
-    }
-  };
+    };
+    load();
+    return () => { mounted = false; };
+  }, [id]);
 
   // Produits similaires (extraits des données existantes)
   const produitsSimilaires = [
@@ -249,10 +46,37 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
     { id: 5, nom: 'Poivron', prix: '1.200', unite: 'kg', image: '🫑' }
   ];
 
-  const produit = produitsData[id] || produitsData[1]; // Valeur par défaut
+  // Helpers d'affichage
+  const imgSrc = (() => {
+    if (!product) return '';
+    const base = import.meta.env.VITE_API_URL;
+    let origin = '';
+    try { origin = new URL(base).origin; } catch { origin = ''; }
+    if (product.imageUrl) return product.imageUrl;
+    if (product.image) return product.image;
+    if (Array.isArray(product.images) && product.images[0]) {
+      const raw = String(product.images[0] ?? '');
+      const file = raw.split(/[\\\/]/).pop();
+      if (file) return `${origin}/uploads/${file}`;
+    }
+    return '';
+  })();
+
+  const producerName = product && (product.seller
+    || product.producerName
+    || (product.producer && [product.producer.firstName, product.producer.lastName].filter(Boolean).join(' '))
+  );
 
   const handleAddToCartClick = () => {
-    handleAddToCart(produit);
+    if (!product) return;
+    const cartProduct = {
+      id: product._id || product.id,
+      nom: product.name,
+      prix: product.price,
+      unite: product.unit,
+      image: Array.isArray(product.images) && product.images[0] ? product.images[0] : product.imageUrl || product.image
+    };
+    handleAddToCart(cartProduct);
   };
 
   const renderStars = (rating) => {
@@ -304,21 +128,21 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
             <div className="order-1">
               <div className="relative">
                 <div className="bg-gray-50 rounded-lg overflow-hidden shadow-lg">
-                  <img
-                    src={produit.image}
-                    alt={produit.nom}
-                    className="w-full h-96 object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
-                  <div 
-                    className="hidden w-full h-96 items-center justify-center bg-gray-100"
-                    style={{ display: 'none' }}
-                  >
-                    <span className="text-8xl">{produit.imageFallback}</span>
-                  </div>
+                  {loading ? (
+                    <div className="w-full h-96 flex items-center justify-center text-gray-500">Chargement...</div>
+                  ) : error ? (
+                    <div className="w-full h-96 flex items-center justify-center text-red-600">{error}</div>
+                  ) : imgSrc ? (
+                    <img
+                      src={imgSrc}
+                      alt={product?.name || ''}
+                      className="w-full h-96 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-96 flex items-center justify-center bg-gray-100">
+                      <span className="text-4xl text-gray-400">—</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -327,30 +151,35 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
             <div className="order-2 lg:pl-8">
               <div className="space-y-6">
                 {/* Nom du produit */}
-                <h1 className="text-4xl font-bold text-gray-800">{produit.nom}</h1>
+                <h1 className="text-4xl font-bold text-gray-800">{product?.name || (loading ? '...' : '—')}</h1>
                 
                 {/* Prix */}
                 <p className="text-2xl font-semibold text-gray-800">
-                  {produit.prix} CFA / {produit.unite}
+                  {product ? (
+                    <>
+                      {typeof product.price === 'number' ? `${product.price} CFA` : (product.price || '-')}
+                      {product.unit ? ` / ${product.unit}` : ''}
+                    </>
+                  ) : '—'}
                 </p>
                 
                 {/* Description */}
                 <p className="text-gray-600 leading-relaxed">
-                  {produit.description}
+                  {product?.description || (loading ? '...' : '—')}
                 </p>
                 
                 {/* Vendeur */}
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-600">Vendu par:</span>
-                  <span className="font-semibold text-gray-800">{produit.vendeur}</span>
+                  <span className="font-semibold text-gray-800">{producerName || (loading ? '...' : '—')}</span>
                 </div>
                 
                 {/* Évaluation */}
                 <div className="flex items-center space-x-2">
                   <div className="flex items-center">
-                    {renderStars(produit.evaluation)}
+                    {renderStars(product?.rating?.average || 0)}
                   </div>
-                  <span className="text-gray-600">({produit.evaluation}/5)</span>
+                  <span className="text-gray-600">({product?.rating?.average || 0}/5)</span>
                 </div>
                 
                 {/* Bouton Ajouter au panier */}
@@ -389,7 +218,7 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Nom</h3>
-                <p className="text-gray-600">{produit.producteur.nom}</p>
+                <p className="text-gray-600">{producerName || '—'}</p>
               </div>
             </div>
             
@@ -402,7 +231,7 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Type de culture</h3>
-                <p className="text-gray-600">{produit.producteur.typeCulture}</p>
+                <p className="text-gray-600">{product?.producer?.producerInfo?.typeCulture || '—'}</p>
               </div>
             </div>
             
@@ -415,7 +244,7 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Certification</h3>
-                <p className="text-gray-600">{produit.producteur.certification}</p>
+                <p className="text-gray-600">{product?.producer?.producerInfo?.certification || '—'}</p>
               </div>
             </div>
             
@@ -429,7 +258,7 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">Localisation</h3>
-                <p className="text-gray-600">{produit.producteur.localisation}</p>
+                <p className="text-gray-600">{product?.producer?.producerInfo?.localisation || '—'}</p>
               </div>
             </div>
           </div>

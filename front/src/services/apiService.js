@@ -7,7 +7,7 @@ import axios from 'axios';
 
 // Configuration de base
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-const API_TIMEOUT = 10000; // 10 secondes
+const API_TIMEOUT = 30000; // 30 secondes
 
 // Créer une instance axios
 const apiClient = axios.create({
@@ -432,6 +432,98 @@ class ApiService {
    */
   async getMyProducts(page = 1, limit = 50, search = '', category = '') {
     return await this.getProducerProducts(page, limit, search, category);
+  }
+
+  // =====================
+  // GESTION PRODUITS (général)
+  // =====================
+
+  /**
+   * Liste des produits avec filtres (publique/admin)
+   * Signature souple: getProducts(page, limit, filters) ou getProducts(filtersObject)
+   */
+  async getProducts(pageOrFilters = 1, limit = 50, filters = {}) {
+    let page = 1;
+    let lim = 50;
+    let f = {};
+
+    if (typeof pageOrFilters === 'object' && pageOrFilters !== null) {
+      f = pageOrFilters;
+    } else {
+      page = Number(pageOrFilters) || 1;
+      lim = Number(limit) || 50;
+      f = filters || {};
+    }
+
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: lim.toString()
+    });
+
+    if (f.search) params.append('search', String(f.search));
+    if (f.category) params.append('category', String(f.category));
+    if (f.minPrice) params.append('minPrice', String(f.minPrice));
+    if (f.maxPrice) params.append('maxPrice', String(f.maxPrice));
+    if (f.isOrganic !== undefined) params.append('isOrganic', String(f.isOrganic));
+    if (f.sort) params.append('sort', String(f.sort));
+
+    return await this.request(`/products?${params.toString()}`);
+  }
+
+  /**
+   * Produits en attente de validation (admin)
+   */
+  async getPendingProducts(page = 1, limit = 50) {
+    return await this.request(`/admin/products/pending?page=${page}&limit=${limit}`);
+  }
+
+  /**
+   * Approuver un produit (admin)
+   */
+  async approveProduct(productId) {
+    return await this.request(`/admin/products/${productId}/approve`, {
+      method: 'PATCH'
+    });
+  }
+
+  /**
+   * Détails d'un produit
+   */
+  async getProductDetails(productId) {
+    return await this.request(`/products/${productId}`);
+  }
+
+  // =====================
+  // PANIER
+  // =====================
+  async getCart() {
+    return await this.request('/cart');
+  }
+
+  async addToCart(productId, quantity = 1) {
+    return await this.request('/cart/add', {
+      method: 'POST',
+      data: { product: productId, quantity }
+    });
+  }
+
+  async updateCartItem(productId, quantity) {
+    return await this.request(`/cart/update/${productId}`, {
+      method: 'PUT',
+      data: { quantity }
+    });
+  }
+
+  async removeFromCart(productId) {
+    return await this.request(`/cart/remove/${productId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async clearCart() {
+    return await this.request('/cart/clear', {
+      method: 'DELETE'
+    });
   }
 
   /**

@@ -11,6 +11,7 @@ const Panier = ({ onOpenRegister, onOpenLogin }) => {
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPaiementOpen, setIsPaiementOpen] = useState(false);
+  const [deliveryFee, setDeliveryFee] = useState(0);
   const [isClearCartModalOpen, setIsClearCartModalOpen] = useState(false);
 
   // 🔹 Gérer le changement de quantité
@@ -35,6 +36,7 @@ const Panier = ({ onOpenRegister, onOpenLogin }) => {
 
   // 🔹 Validation du formulaire de commande
   const handleSubmitCommande = (data) => {
+    setDeliveryFee(Number(data?.deliveryFee || 0));
     setIsModalOpen(false);
     setIsPaiementOpen(true); // 🔥 Ouvre le modal de paiement après validation
   };
@@ -54,6 +56,8 @@ const Panier = ({ onOpenRegister, onOpenLogin }) => {
       <PaiementModal
         isOpen={isPaiementOpen}
         onClose={() => setIsPaiementOpen(false)}
+        onBack={() => { setIsPaiementOpen(false); setIsModalOpen(true); }}
+        deliveryFee={deliveryFee}
       />
 
       {/* 🔹 Modal de confirmation pour vider le panier */}

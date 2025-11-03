@@ -5,11 +5,13 @@ import cashImg from "../assets/cash.jpg";
 import WavePaymentModal from "./WavePaymentModal";
 import { useCart } from "../contexts/CartContext";
 
-const PaiementModal = ({ isOpen, onClose }) => {
+const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
   const [selected, setSelected] = useState(null);
   const [showWavePayment, setShowWavePayment] = useState(false);
   const navigate = useNavigate();
   const { getTotalPrice } = useCart();
+  const productsTotal = getTotalPrice();
+  const totalToPay = productsTotal + (Number(deliveryFee) || 0);
 
   if (!isOpen) return null;
 
@@ -43,6 +45,14 @@ const PaiementModal = ({ isOpen, onClose }) => {
       {/* Modal de sélection du moyen de paiement */}
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-xl p-6 w-96 shadow-lg relative">
+          {/* Bouton retour */}
+          <button
+            onClick={() => (onBack ? onBack() : onClose())}
+            className="absolute top-2 left-3 text-gray-500 hover:text-gray-700 text-xl"
+            aria-label="Retour"
+          >
+            ←
+          </button>
           {/* Bouton fermer */}
           <button
             onClick={onClose}
@@ -97,6 +107,8 @@ const PaiementModal = ({ isOpen, onClose }) => {
             </div>
           )}
 
+          
+
           {/* Bouton d'action */}
           <button
             disabled={!selected}
@@ -120,7 +132,8 @@ const PaiementModal = ({ isOpen, onClose }) => {
       <WavePaymentModal
         isOpen={showWavePayment}
         onClose={handleWavePaymentClose}
-        amount={getTotalPrice()}
+        onBack={() => setShowWavePayment(false)}
+        amount={totalToPay}
         customerInfo={{}}
         onSuccess={handleWavePaymentSuccess}
       />

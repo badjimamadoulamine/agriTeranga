@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const WavePaymentModal = ({ isOpen, onClose, amount, customerInfo, onSuccess }) => {
+const WavePaymentModal = ({ isOpen, onClose, onBack, amount, customerInfo, onSuccess }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState('input'); // 'input', 'processing', 'success'
@@ -50,6 +50,14 @@ const WavePaymentModal = ({ isOpen, onClose, amount, customerInfo, onSuccess }) 
         <div className="bg-gradient-to-r from-green-600 to-green-700 p-4 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
+              {/* Back button */}
+              <button
+                onClick={() => (onBack ? onBack() : onClose())}
+                className="mr-2 text-white/90 hover:text-white text-xl"
+                aria-label="Retour"
+              >
+                ←
+              </button>
               <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                 <span className="text-green-600 font-bold text-lg">W</span>
               </div>

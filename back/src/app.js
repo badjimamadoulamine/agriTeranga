@@ -22,7 +22,9 @@ const app = express();
 // Middlewares de sécurité
 app.use(helmet({
   // Autoriser le chargement de ressources (images) depuis d'autres origines
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // Permettre les popups (Google) et postMessage
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }
 }));
 
 // CORS: autoriser le front local (localhost/127.0.0.1, tout port) et FRONTEND_URL

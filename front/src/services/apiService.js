@@ -435,6 +435,41 @@ class ApiService {
   }
 
   /**
+   * Liste des produits (admin/général) avec filtres flexibles
+   */
+  async getProducts(filters = {}) {
+    // Supporter à la fois un objet de filtres et (page, limit, ...)
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      category = '',
+      minPrice,
+      maxPrice,
+      isOrganic,
+      sort
+    } = (typeof filters === 'object' ? filters : {}) || {};
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+
+    const appendIf = (key, value) => {
+      if (value !== undefined && value !== null && value !== '') params.append(key, String(value));
+    };
+
+    appendIf('search', search);
+    appendIf('category', category);
+    appendIf('minPrice', minPrice);
+    appendIf('maxPrice', maxPrice);
+    if (isOrganic !== undefined) params.append('isOrganic', String(Boolean(isOrganic)));
+    appendIf('sort', sort);
+
+    return await this.request(`/products?${params.toString()}`);
+  }
+
+  /**
    * Créer un nouveau produit
    */
   async createProduct(productData) {
@@ -461,6 +496,33 @@ class ApiService {
     return await this.request(`/products/${productId}`, {
       method: 'DELETE'
     });
+  }
+
+  /**
+   * Produits en attente de validation (admin)
+   */
+  async getPendingProducts(page = 1, limit = 50) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+    return await this.request(`/admin/products/pending?${params.toString()}`);
+  }
+
+  /**
+   * Approuver un produit (admin)
+   */
+  async approveProduct(productId) {
+    return await this.request(`/admin/products/${productId}/approve`, {
+      method: 'PATCH'
+    });
+  }
+
+  /**
+   * Catégories produits (helper backend)
+   */
+  async getProductCategories() {
+    return await this.request('/products/categories');
   }
 
   /**
@@ -507,8 +569,8 @@ class ApiService {
     }
     if (statusValue) params.append('status', statusValue);
 
-    // Backend route lives under /orders/producer/list
-    return await this.request(`/orders/producer/list?${params.toString()}`);
+    // Backend route lives under /users/producer/orders
+    return await this.request(`/users/producer/orders?${params.toString()}`);
   }
 
   /**
@@ -538,6 +600,92 @@ class ApiService {
     });
 
     return await this.request(`/formations/my?${params.toString()}`);
+  }
+
+  /**
+   * Formations (admin/général) avec filtres
+   */
+  async getFormations(filters = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      category,
+      type,
+      level,
+      search,
+      isPublished,
+      sort
+    } = (filters || {});
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+
+    const appendIf = (key, value) => {
+      if (value !== undefined && value !== null && value !== '') params.append(key, String(value));
+    };
+
+    appendIf('category', category);
+    appendIf('type', type);
+    appendIf('level', level);
+    appendIf('search', search);
+    if (isPublished !== undefined) params.append('isPublished', String(Boolean(isPublished)));
+    appendIf('sort', sort);
+
+    return await this.request(`/formations?${params.toString()}`);
+  }
+
+  /**
+   * Publier/Dépublier une formation (toggle)
+   */
+  async toggleFormationPublish(formationId) {
+    return await this.request(`/formations/${formationId}/publish`, {
+      method: 'PATCH'
+    });
+  }
+
+  /**
+   * Créer une formation
+   */
+  async createFormation(formationData) {
+    return await this.request('/formations', {
+      method: 'POST',
+      data: formationData
+    });
+  }
+
+  /**
+   * Mettre à jour une formation
+   */
+  async updateFormation(formationId, formationData) {
+    return await this.request(`/formations/${formationId}`, {
+      method: 'PUT',
+      data: formationData
+    });
+  }
+
+  /**
+   * Supprimer une formation
+   */
+  async deleteFormation(formationId) {
+    return await this.request(`/formations/${formationId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Options/Formations metadata (catégories, types, niveaux, statuts)
+   */
+  async getFormationOptions() {
+    return await this.request('/formations/options');
+  }
+
+  /**
+   * Catégories de formations
+   */
+  async getFormationCategories() {
+    return await this.request('/formations/categories');
   }
 
   // =====================

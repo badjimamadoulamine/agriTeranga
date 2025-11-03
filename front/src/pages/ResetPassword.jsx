@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import apiService from '../services/apiService';
 import { useAuthToast } from '../contexts/ToastContext';
 
 const ResetPassword = () => {
-  const { token } = useParams();
+  const { token: tokenFromParam } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const toast = useAuthToast();
 
@@ -24,8 +25,19 @@ const ResetPassword = () => {
     return true;
   };
 
+  const token = useMemo(() => {
+    if (tokenFromParam) return tokenFromParam;
+    const qs = new URLSearchParams(location.search);
+    const t = qs.get('token');
+    return t || '';
+  }, [tokenFromParam, location.search]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!token) {
+      toast.showError('Lien invalide ou manquant. Réouvrez le lien reçu par email.');
+      return;
+    }
     if (!validate()) return;
     setSubmitting(true);
     const loadingId = toast.showLoading('Réinitialisation en cours...');
@@ -51,6 +63,11 @@ const ResetPassword = () => {
       <div className="bg-white w-full max-w-md rounded-xl shadow p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Réinitialiser le mot de passe</h1>
         <p className="text-sm text-gray-600 mb-6">Saisissez votre nouveau mot de passe ci-dessous.</p>
+        {!token && (
+          <div className="mb-4 p-3 rounded border border-yellow-300 bg-yellow-50 text-yellow-800 text-sm">
+            Lien de réinitialisation invalide ou expiré. Ouvrez le lien depuis l'email reçu, ou redemandez un nouveau lien via "Mot de passe oublié ?".
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -79,7 +96,7 @@ const ResetPassword = () => {
           </div>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !token}
             className="w-full bg-[#2D5F3F] text-white font-medium py-3 px-4 rounded-lg hover:bg-[#234a32] transition-colors disabled:opacity-50"
           >
             {submitting ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}

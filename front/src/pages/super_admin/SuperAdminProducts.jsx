@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Settings, 
   Package, 
@@ -16,8 +17,33 @@ import {
   Database,
   Cog
 } from 'lucide-react'
+import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
+import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
 
 const SuperAdminProducts = () => {
+  const navigate = useNavigate()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // Récupérer l'utilisateur super admin
+  const user = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('superAdminUser') || localStorage.getItem('user')
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('superAdminUser')
+    navigate('/login')
+  }
+
+  const handleOpenProfile = () => {
+    console.log('Opening profile...')
+  }
   const [products] = useState([
     {
       id: 1,
@@ -49,28 +75,52 @@ const SuperAdminProducts = () => {
 
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false)
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Configuration Produits Avancée</h1>
-          <p className="text-gray-600">Configuration globale et avancée des produits - Accès Super Admin</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button 
-            onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
-          >
-            <Settings className="w-5 h-5" />
-            <span>Configuration Avancée</span>
-          </button>
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
-            <Plus className="w-5 h-5" />
-            <span>Nouveau produit</span>
-          </button>
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de l'authentification...</p>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="flex h-screen bg-[#F8FAF8]">
+      <SuperAdminSidebar 
+        user={user} 
+        onClose={() => setSidebarOpen(false)} 
+      />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <SuperAdminHeader 
+          user={user}
+          onOpenProfile={handleOpenProfile}
+          onLogout={handleLogout}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Page Title */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Configuration Produits Avancée</h1>
+                <p className="text-gray-600">Configuration globale et avancée des produits - Accès Super Admin</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Configuration Avancée</span>
+                </button>
+                <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+                  <Plus className="w-5 h-5" />
+                  <span>Nouveau produit</span>
+                </button>
+              </div>
+            </div>
 
       {/* Super Admin Alert */}
       <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -348,6 +398,8 @@ const SuperAdminProducts = () => {
             <span>Rapport Avancé</span>
           </button>
         </div>
+          </div>
+        </main>
       </div>
     </div>
   )

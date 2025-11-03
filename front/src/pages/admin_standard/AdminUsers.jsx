@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { 
   Users, 
   Plus, 
@@ -23,11 +24,33 @@ import {
 import { useUsers, useAuth } from '../../hooks/useApi'
 import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
+import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
+import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
 
 const AdminUsers = () => {
+  const location = useLocation()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // Détecter si on est dans un contexte Super Admin
+  const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
+  
+  // Déterminer quel stockage utiliser selon le contexte
+  const user = React.useMemo(() => {
+    try {
+      let storageKey
+      if (isSuperAdminContext) {
+        storageKey = localStorage.getItem('superAdminUser') || localStorage.getItem('adminDashboardUser')
+      } else {
+        storageKey = localStorage.getItem('adminDashboardUser')
+      }
+      return storageKey ? JSON.parse(storageKey) : null
+    } catch {
+      return null
+    }
+  }, [isSuperAdminContext])
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
@@ -262,11 +285,51 @@ const AdminUsers = () => {
   const startItem = (currentPage - 1) * itemsPerPage + 1
   const endItem = Math.min(currentPage * itemsPerPage, total)
 
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('adminDashboardUser')
+    localStorage.removeItem('superAdminUser')
+    window.location.href = isSuperAdminContext ? '/login' : '/admin/login'
+  }
+
+  const handleOpenProfile = () => {
+    console.log('Opening profile...')
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-[#F8FAF8]">
-      <AdminSidebar user={user} />
+      {isSuperAdminContext ? (
+        <SuperAdminSidebar user={user} onClose={() => setSidebarOpen(false)} />
+      ) : (
+        <AdminSidebar user={user} />
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <AdminHeader user={user} onOpenProfile={() => (window.location.href = '/admin/settings')} onLogout={() => { localStorage.clear(); window.location.href = '/login' }} />
+        {isSuperAdminContext ? (
+          <SuperAdminHeader
+            user={user}
+            onOpenProfile={handleOpenProfile}
+            onLogout={handleLogout}
+            onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          />
+        ) : (
+          <AdminHeader
+            user={user}
+            onOpenProfile={handleOpenProfile}
+            onLogout={handleLogout}
+          />
+        )}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
             {/* Debug / info current admin */}

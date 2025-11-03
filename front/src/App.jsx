@@ -152,6 +152,56 @@ function AppContent() {
           <Route path="/super-admin/dashboard" element={<ProtectedRoute dashboard="super-admin"><SuperAdminDashboard /></ProtectedRoute>} />
           <Route path="/super-admin/orders" element={<ProtectedRoute dashboard="super-admin"><SuperAdminOrders /></ProtectedRoute>} />
           <Route path="/super-admin/products" element={<ProtectedRoute dashboard="super-admin"><SuperAdminProducts /></ProtectedRoute>} />
+          
+          {/* Super Admin Access to Admin Standard Pages */}
+          <Route
+            path="/super-admin/admin-dashboard"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-users"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-products"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-sales"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminSales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-formations"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminFormations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-login"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminLogin />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
         
         {/* Modal d'inscription */}

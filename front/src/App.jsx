@@ -39,6 +39,7 @@ import Experts from './pages/Experts'
 import Vendeurs from './pages/Vendeurs'
 import Livraison from './pages/Livraison'
 import ResetPassword from './pages/ResetPassword'
+import AdminLogin from './pages/admin_standard/AdminLogin'
 
 function AppContent() {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
@@ -74,6 +75,7 @@ function AppContent() {
           <Route path="/connexion" element={<Login onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/contact" element={<Contact onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/about" element={<About onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/login" element={<Login onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route

@@ -6,6 +6,7 @@ import apiService from '../services/apiService';
 import useErrorHandler from '../hooks/useErrorHandler';
 import { FieldWithError } from './ErrorMessage';
 import { useAuthToast } from '../contexts/ToastContext';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
     setLoading 
   } = useErrorHandler();
   const toast = useAuthToast();
+  const [showForgot, setShowForgot] = useState(false);
 
   // Vérifier si l'utilisateur vient de vérifier son email
   React.useEffect(() => {
@@ -236,6 +238,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -332,10 +335,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
               <button
                 type="button"
                 className="text-sm text-black hover:text-[#2D5F3F] transition-colors"
-                onClick={() => {
-                  // Logique de mot de passe oublié
-                  console.log('Mot de passe oublié');
-                }}
+                onClick={() => setShowForgot(true)}
               >
                 Mot de passe oublié ?
               </button>
@@ -370,6 +370,10 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
         </div>
       </div>
     </div>
+    {showForgot && (
+      <ForgotPasswordModal isOpen={showForgot} onClose={() => setShowForgot(false)} />
+    )}
+    </>
   );
 };
 

@@ -285,6 +285,26 @@ class ApiService {
     });
   }
 
+  /**
+   * Demander la réinitialisation du mot de passe (envoi email)
+   */
+  async forgotPassword(email) {
+    return await this.request('/auth/forgot-password', {
+      method: 'POST',
+      data: { email }
+    });
+  }
+
+  /**
+   * Réinitialiser le mot de passe avec un token
+   */
+  async resetPassword(token, password) {
+    return await this.request(`/auth/reset-password/${encodeURIComponent(token)}`, {
+      method: 'PUT',
+      data: { password }
+    });
+  }
+
   // =====================
   // ADMIN DASHBOARD
   // =====================

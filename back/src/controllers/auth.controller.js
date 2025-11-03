@@ -305,13 +305,31 @@ exports.forgotPassword = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    const resetURL = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${resetToken}`;
+    // Construire l'URL frontend pour la réinitialisation
+    const frontendUrl = process.env.FRONTEND_URL || '';
+    const resetURL = frontendUrl
+      ? `${frontendUrl.replace(/\/$/, '')}/reset-password/${resetToken}`
+      : `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`;
+
+    // Envoyer l'email de réinitialisation
+    try {
+      await emailService.sendPasswordResetEmail(user, resetToken);
+    } catch (mailErr) {
+      // En cas d'échec d'envoi, nettoyer les champs et informer l'API
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({
+        status: 'error',
+        message: "Impossible d'envoyer l'email de réinitialisation. Réessayez plus tard."
+      });
+    }
 
     res.status(200).json({
       status: 'success',
-      message: 'Token de réinitialisation envoyé par email',
-      resetToken, // À retirer en production
-      resetURL // À retirer en production
+      message: 'Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.',
+      // Pour le debug local uniquement, on peut retourner resetURL si nécessaire
+      ...(process.env.NODE_ENV === 'development' && { resetURL })
     });
   } catch (error) {
     res.status(500).json({

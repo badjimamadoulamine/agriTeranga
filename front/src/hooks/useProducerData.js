@@ -3,7 +3,7 @@
  * Gère les produits, commandes et statistiques du producteur
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 import { toast } from 'react-toastify';
 
@@ -56,12 +56,29 @@ const useProducerData = () => {
         filters?.category || ''
       );
       
-      if (response.status === 'success' && response.data) {
-        setProducts(response.data.products || []);
+      if (response?.status === 'success') {
+        const data = response.data || {};
+        const items = data.products || data.items || data.results || [];
+        // Normaliser les produits pour l'UI (id au lieu de _id)
+        const normalized = (items || []).map((p) => ({
+          id: p.id || p._id || p.productId,
+          name: p.name,
+          description: p.description,
+          price: p.price,
+          category: p.category,
+          stock: p.stock,
+          unit: p.unit,
+          isAvailable: typeof p.isAvailable === 'boolean' ? p.isAvailable : (p.isPublished ?? false),
+          image: p.image || p.images?.[0] || p.thumbnail,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt
+        }));
+
+        setProducts(normalized);
         setProductsPagination({
-          page: response.data.currentPage || page,
-          totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          page: data.currentPage || data.page || page,
+          totalPages: data.totalPages || data.pages || 1,
+          total: data.total || data.count || normalized.length
         });
       }
     } catch (err) {
@@ -80,12 +97,21 @@ const useProducerData = () => {
     try {
       const response = await apiService.getProducerOrders(page, 20, filters);
       
-      if (response.status === 'success' && response.data) {
-        setOrders(response.data.orders || []);
+      if (response?.status === 'success') {
+        const data = response.data || {};
+        const items = data.orders || data.items || data.results || [];
+        const normalized = (items || []).map((o) => ({
+          id: o.id || o._id || o.orderId,
+          status: o.status,
+          totalAmount: o.totalAmount || o.amount || 0,
+          createdAt: o.createdAt,
+          updatedAt: o.updatedAt
+        }));
+        setOrders(normalized);
         setOrdersPagination({
-          page: response.data.currentPage || page,
-          totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          page: data.currentPage || data.page || page,
+          totalPages: data.totalPages || data.pages || 1,
+          total: data.total || data.count || normalized.length
         });
       }
     } catch (err) {
@@ -286,6 +312,33 @@ const useProducerData = () => {
     setLoading(false);
   }, [loadStats, loadProducts, loadOrders, productsPagination.page, productsFilters, ordersPagination.page, ordersFilters]);
 
+  // Agréger les ventes par mois à partir des commandes
+  const salesChartData = React.useMemo(() => {
+    try {
+      const byMonth = new Map();
+      (orders || []).forEach((o) => {
+        const d = o.createdAt ? new Date(o.createdAt) : null;
+        if (!d || isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const prev = byMonth.get(key) || { revenue: 0, orders: 0, year: d.getFullYear(), monthIndex: d.getMonth() };
+        prev.revenue += Number(o.totalAmount || 0);
+        prev.orders += 1;
+        byMonth.set(key, prev);
+      });
+      // trier chronologiquement et formater
+      const months = Array.from(byMonth.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([_, v]) => ({
+          month: new Date(v.year, v.monthIndex, 1).toLocaleString('fr-FR', { month: 'short' }),
+          revenue: v.revenue,
+          orders: v.orders
+        }));
+      return months;
+    } catch {
+      return [];
+    }
+  }, [orders]);
+
   /**
    * Effet pour charger les données au montage
    */
@@ -315,6 +368,7 @@ const useProducerData = () => {
     orders,
     loading,
     error,
+    salesChartData,
     
     // Pagination
     productsPagination,

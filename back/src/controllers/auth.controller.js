@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const RevokedToken = require('../models/RevokedToken');
 const emailService = require('../services/email.service');
@@ -9,6 +10,61 @@ const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
+};
+
+// Google Identity Services credential login
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) {
+      return res.status(400).json({ status: 'error', message: 'Credential manquant' });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ status: 'error', message: 'GOOGLE_CLIENT_ID non configuré' });
+    }
+
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({ idToken: credential, audience: clientId });
+    const payload = ticket.getPayload();
+
+    const email = String(payload.email || '').toLowerCase();
+    const firstName = payload.given_name || '';
+    const lastName = payload.family_name || '';
+    const picture = payload.picture || '';
+
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email Google introuvable' });
+    }
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      // Créer un nouveau user minimal côté app (consommateur par défaut)
+      user = await User.create({
+        firstName,
+        lastName,
+        email,
+        password: crypto.randomBytes(16).toString('hex'), // placeholder, non utilisé
+        role: 'consommateur',
+        profilePicture: picture,
+        isVerified: true
+      });
+      try { await emailService.sendWelcomeEmail(user); } catch (_) {}
+    }
+
+    if (!user.isActive || user.isDeleted) {
+      return res.status(401).json({ status: 'error', message: "Compte inactif ou supprimé" });
+    }
+
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
+
+    const token = signToken(user._id);
+    return res.status(200).json({ status: 'success', token, data: { user } });
+  } catch (error) {
+    return res.status(400).json({ status: 'error', message: error.message });
+  }
 };
 
 // Inscription

@@ -124,9 +124,27 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
     // Afficher un toast de chargement
     const loadingToastId = toast.showLoading('Connexion en cours...');
 
+    // Normaliser l'identifiant (email ou téléphone)
+    const normalizeIdentifier = (val) => {
+      const raw = String(val || '').trim();
+      // Si c'est un email, laisser tel quel
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+      if (isEmail) return raw.toLowerCase();
+      // Sinon, considérer comme téléphone: enlever espaces et ponctuation
+      const digits = raw.replace(/[^0-9+]/g, '');
+      // Déjà en E.164
+      if (digits.startsWith('+') && digits.length >= 8) return digits;
+      // Heuristique Sénégal (+221): enlever 0 initial, préfixer +221 si longueur 9
+      let onlyDigits = digits.replace(/\D/g, '');
+      if (onlyDigits.startsWith('0')) onlyDigits = onlyDigits.slice(1);
+      if (onlyDigits.length === 9) return `+221${onlyDigits}`;
+      // Sinon, renvoyer tel quel (le backend décidera)
+      return digits || raw;
+    };
+
     try {
       const result = await authService.login({
-        identifier: formData.identifier.trim(),
+        identifier: normalizeIdentifier(formData.identifier),
         password: formData.password
       });
       

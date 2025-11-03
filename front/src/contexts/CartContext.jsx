@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import apiService from '../services/apiService';
 
 const CartContext = createContext();
 
@@ -13,20 +15,60 @@ export const useCart = () => {
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [cartCount, setCartCount] = useState(0);
+  const { user, isAuthenticated } = useAuth();
 
-  // Charger le panier depuis localStorage au démarrage
+  const mapServerCartToClient = (cart) => {
+    if (!cart || !Array.isArray(cart.items)) return [];
+    return cart.items.map((it) => {
+      const p = it.product || {};
+      return {
+        id: p._id || p.id,
+        nom: p.name,
+        name: p.name,
+        prix: typeof p.price === 'number' ? p.price : Number(p.price) || 0,
+        price: typeof p.price === 'number' ? p.price : Number(p.price) || 0,
+        unite: p.unit,
+        unit: p.unit,
+        quantity: it.quantity || 1,
+        image: Array.isArray(p.images) && p.images[0] ? p.images[0] : (p.imageUrl || p.image)
+      };
+    });
+  };
+
+  // Charger le panier: depuis l'API si authentifié, sinon localStorage
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart);
-        setCartItems(parsedCart);
-      } catch (error) {
-        console.error('Erreur lors du chargement du panier:', error);
-        localStorage.removeItem('cart');
+    const load = async () => {
+      if (isAuthenticated) {
+        try {
+          const resp = await apiService.getCart();
+          const payload = resp || {};
+          const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
+          const items = mapServerCartToClient(cart);
+          setCartItems(items);
+        } catch (e) {
+          // fallback local si erreur API
+          const saved = localStorage.getItem('cart');
+          if (saved) {
+            try { setCartItems(JSON.parse(saved)); } catch { setCartItems([]); }
+          }
+        }
+      } else {
+        const savedCart = localStorage.getItem('cart');
+        if (savedCart) {
+          try {
+            const parsedCart = JSON.parse(savedCart);
+            setCartItems(parsedCart);
+          } catch {
+            localStorage.removeItem('cart');
+          }
+        } else {
+          setCartItems([]);
+        }
       }
-    }
-  }, []);
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.id]);
 
   // Mettre à jour le cartCount et sauvegarder à chaque changement de cartItems
   useEffect(() => {
@@ -35,21 +77,35 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const addToCart = (product) => {
+  const addToCart = async (product) => {
+    if (isAuthenticated) {
+      try {
+        const productId = product._id || product.id;
+        const resp = await apiService.addToCart(productId, 1);
+        const payload = resp || {};
+        const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
+        setCartItems(mapServerCartToClient(cart));
+        return;
+      } catch (e) {
+        // si échec API, on tombe sur la logique locale
+      }
+    }
+    // Local fallback (invités ou erreur API)
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
-      
+      const existingItem = prevItems.find(item => item.id === (product._id || product.id));
       if (existingItem) {
-        // Si le produit existe déjà, augmenter la quantité
         return prevItems.map(item =>
-          item.id === product.id
+          item.id === (product._id || product.id)
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       } else {
-        // Ajouter un nouveau produit
         return [...prevItems, { 
           ...product, 
+          id: product._id || product.id,
+          nom: product.nom || product.name,
+          prix: product.prix ?? product.price,
+          unite: product.unite ?? product.unit,
           quantity: 1,
           addedAt: new Date().toISOString()
         }];
@@ -57,19 +113,35 @@ export const CartProvider = ({ children }) => {
     });
   };
 
-  const removeFromCart = (productId) => {
-    setCartItems(prevItems => {
-      const updatedItems = prevItems.filter(item => item.id !== productId);
-      return updatedItems;
-    });
+  const removeFromCart = async (productId) => {
+    if (isAuthenticated) {
+      try {
+        await apiService.removeFromCart(productId);
+        const resp = await apiService.getCart();
+        const payload = resp || {};
+        const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
+        setCartItems(mapServerCartToClient(cart));
+        return;
+      } catch {}
+    }
+    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
   };
 
-  const updateQuantity = (productId, newQuantity) => {
+  const updateQuantity = async (productId, newQuantity) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      await removeFromCart(productId);
       return;
     }
-    
+    if (isAuthenticated) {
+      try {
+        await apiService.updateCartItem(productId, newQuantity);
+        const resp = await apiService.getCart();
+        const payload = resp || {};
+        const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
+        setCartItems(mapServerCartToClient(cart));
+        return;
+      } catch {}
+    }
     setCartItems(prevItems =>
       prevItems.map(item =>
         item.id === productId
@@ -79,12 +151,19 @@ export const CartProvider = ({ children }) => {
     );
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
+    if (isAuthenticated) {
+      try {
+        await apiService.clearCart();
+        setCartItems([]);
+        return;
+      } catch {}
+    }
     setCartItems([]);
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + (item.prix * item.quantity), 0);
+    return cartItems.reduce((total, item) => total + ((item.prix ?? item.price ?? 0) * (item.quantity || 1)), 0);
   };
 
   const getCartItemCount = () => {

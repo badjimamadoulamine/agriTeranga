@@ -19,7 +19,7 @@ import {
   XCircle
 } from 'lucide-react'
 import { useProducts, usePendingProducts } from '../../hooks/useApi'
-import apiService from '../../services/api'
+import apiService from '../../services/apiService'
 import { useEffect } from 'react'
 
 const AdminProducts = () => {

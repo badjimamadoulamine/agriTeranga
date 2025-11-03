@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import apiService from '../services/api';
+import apiService from '../services/apiService';
 
 export const useFormations = (params = {}) => {
   const [formations, setFormations] = useState([]);

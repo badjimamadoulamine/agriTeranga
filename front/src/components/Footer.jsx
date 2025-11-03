@@ -68,6 +68,11 @@ const Footer = () => {
                   Avis d'experts
                 </Link>
               </li>
+              <li>
+                <Link to="/livraison" className="text-green-100 hover:text-white transition-colors">
+                  Livraison
+                </Link>
+              </li>
             </ul>
           </div>
 

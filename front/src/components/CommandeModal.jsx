@@ -4,6 +4,12 @@ const villesSenegal = [
   "Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack", "Tambacounda",
   "Louga", "Kolda", "Fatick", "Matam", "Kaffrine", "Kédougou", "Sédhiou", "Diourbel"
 ];
+// Tarifs de livraison par ville (exemples)
+const cityDeliveryPrice = (ville) => {
+  if (ville === 'Dakar') return 500;
+  if (ville === 'Thiès') return 1000;
+  return 1500; // par défaut
+};
 const pickupPoints = [
   'Point de retrait - Dakar Plateau',
   'Point de retrait - Yoff',
@@ -52,7 +58,8 @@ export default function CommandeModal({ isOpen, onClose, onSubmit }) {
           : deliveryMethod === 'farm-pickup'
           ? { farmLocation: formData.farmLocation }
           : {})
-      }
+      },
+      deliveryFee: deliveryMethod === 'home-delivery' && formData.adresse ? cityDeliveryPrice(formData.adresse) : 0
     };
     onSubmit(payload);
   };
@@ -124,7 +131,12 @@ export default function CommandeModal({ isOpen, onClose, onSubmit }) {
             {deliveryMethod === 'home-delivery' && (
               <div className="space-y-3">
                 <div>
-                  <label className="block font-medium text-gray-700">Ville</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block font-medium text-gray-700">Ville</label>
+                    <span className="text-sm text-gray-600">
+                      {formData.adresse ? `${cityDeliveryPrice(formData.adresse)} CFA` : ''}
+                    </span>
+                  </div>
                   <select
                     required
                     value={formData.adresse}
@@ -133,7 +145,7 @@ export default function CommandeModal({ isOpen, onClose, onSubmit }) {
                   >
                     <option value="">-- Choisis ta ville --</option>
                     {villesSenegal.map((ville) => (
-                      <option key={ville} value={ville}>{ville}</option>
+                      <option key={ville} value={ville}>{`${ville} — ${cityDeliveryPrice(ville)} CFA`}</option>
                     ))}
                   </select>
                 </div>

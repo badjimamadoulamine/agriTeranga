@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, ChevronDown, Search, Filter, Plus, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
 import ProducerLayout from '../../layouts/ProducerLayout';
 import useProducerData from '../../hooks/useProducerData';
+
 import {
   BarChart,
   Bar,
@@ -35,6 +36,16 @@ const ProducerDashboard = () => {
     changeProductsPage
   } = useProducerData();
 
+  // Données pour les graphiques (chiffre d'affaires par mois)
+  const salesChartData = [
+    { month: 'Jan', revenue: 45000, orders: 12 },
+    { month: 'Fév', revenue: 38000, orders: 10 },
+    { month: 'Mar', revenue: 49000, orders: 15 },
+    { month: 'Avr', revenue: 42000, orders: 13 },
+    { month: 'Mai', revenue: 50000, orders: 16 },
+    { month: 'Juin', revenue: 46000, orders: 14 },
+  ];
+
   // State pour le formulaire d'ajout de produit
   const [productForm, setProductForm] = useState({
     name: '',
@@ -50,16 +61,6 @@ const ProducerDashboard = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-
-  // Données pour les graphiques (chiffre d'affaires par mois)
-  const salesChartData = [
-    { month: 'Jan', revenue: 45000, orders: 12 },
-    { month: 'Fév', revenue: 38000, orders: 10 },
-    { month: 'Mar', revenue: 49000, orders: 15 },
-    { month: 'Avr', revenue: 42000, orders: 13 },
-    { month: 'Mai', revenue: 50000, orders: 16 },
-    { month: 'Juin', revenue: 46000, orders: 14 },
-  ];
 
   // Couleurs pour les graphiques
   const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'];

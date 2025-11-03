@@ -200,6 +200,11 @@ router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/login', authController.login);
 
 /**
+ * Google Identity Services credential login
+ */
+router.post('/google', authController.googleLogin);
+
+/**
  * @swagger
  * /auth/logout:
  *   post:

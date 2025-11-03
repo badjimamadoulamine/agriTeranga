@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 3060.56 1891.24">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: -.04em;
+      }
+
+      .cls-2 {
+        fill: url(#linear-gradient-2);
+      }
+
+      .cls-3 {
+        clip-path: url(#clippath-1);
+      }
+
+      .cls-4 {
+        letter-spacing: -.02em;
+      }
+
+      .cls-5 {
+        clip-rule: evenodd;
+        fill: none;
+      }
+
+      .cls-6 {
+        fill: #013b01;
+        opacity: .21;
+      }
+
+      .cls-6, .cls-7, .cls-8 {
+        fill-rule: evenodd;
+      }
+
+      .cls-7 {
+        opacity: .19;
+      }
+
+      .cls-7, .cls-9 {
+        fill: #fff;
+      }
+
+      .cls-10 {
+        fill: url(#linear-gradient);
+      }
+
+      .cls-8 {
+        fill: #045304;
+        opacity: .17;
+      }
+
+      .cls-11 {
+        clip-path: url(#clippath);
+      }
+
+      .cls-9 {
+        font-family: Roboto-ExtraBold, Roboto;
+        font-size: 363.92px;
+        font-weight: 700;
+      }
+    </style>
+    <clipPath id="clippath">
+      <path class="cls-5" d="M475.13,662.35v.06c-1.59,16.56-3.8,33.14-6.64,49.71l-10.44,78.14c79.76-38,176.13-91.67,263.58-161.41-16.23-150.07-82.43-291.78-188.5-400.62-61.92-63.55-137.41-115.88-224.5-152.15-42.34-17.63-85.45-30.64-128.77-39.27,206.44,139.03,318.66,380.97,295.27,625.54"/>
+    </clipPath>
+    <linearGradient id="linear-gradient" x1="378.41" y1="1290.82" x2="521.74" y2="-447.51" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#027800"/>
+      <stop offset="1" stop-color="#d7f241"/>
+    </linearGradient>
+    <clipPath id="clippath-1">
+      <path class="cls-5" d="M498.62,651.11h-.02s-.03.04-.03.04c-12.84,10.59-26.12,20.75-39.84,30.45L0,1032.2c137.05,35.54,286.36,28.55,427.35-29.53,258.49-106.49,415.85-354.6,419.25-617.52,1.15-88.72-15.23-179.11-51.16-266.33-17.47-42.4-38.76-82.09-63.29-118.82,47.66,244.29-44.07,494.71-233.54,651.11"/>
+    </clipPath>
+    <linearGradient id="linear-gradient-2" x1="32.64" y1="2068.87" x2="607.64" y2="-187.12" xlink:href="#linear-gradient"/>
+  </defs>
+  <g>
+    <g class="cls-11">
+      <rect class="cls-10" x="179.86" y="36.81" width="541.77" height="753.45"/>
+    </g>
+    <path class="cls-8" d="M616.26,703.45c35.47-22.41,71.1-47.27,105.37-74.59-16.23-150.07-82.43-291.78-188.5-400.62-61.92-63.55-137.41-115.88-224.5-152.15-42.34-17.63-85.45-30.64-128.77-39.27,0,0,347.29,122.3,425.3,614.95,2.97,18.76,6.74,35.84,11.1,51.68"/>
+    <path class="cls-6" d="M475.13,662.35v.06c-1.59,16.56-3.8,33.14-6.64,49.71l-10.44,78.14c79.76-38,176.13-91.67,263.58-161.41-9.26-85.66-34.83-168.6-74.78-244.26-27.19,46.54-87.12,140.27-168.7,216.86-.1,20.24-1.08,40.56-3.02,60.9"/>
+    <g class="cls-3">
+      <rect class="cls-2" width="847.75" height="1067.74"/>
+    </g>
+    <path class="cls-7" d="M498.62,651.11h-.02s-.03.04-.03.04c-12.84,10.59-26.12,20.75-39.84,30.45L0,1032.2c71.74,18.6,146.83,25.54,222.34,19.61,124.24-120.52,265.63-257.22,387.64-374.05C906.85,393.52,732.16,0,732.16,0c47.66,244.29-44.07,494.71-233.54,651.11"/>
+  </g>
+  <text class="cls-9" transform="translate(1031.84 686.29)"><tspan x="0" y="0">Agri</tspan><tspan class="cls-1" x="688.56" y="0">T</tspan><tspan x="900.02" y="0">e</tspan><tspan class="cls-4" x="1097.43" y="0">r</tspan><tspan x="1227.33" y="0">anga</tspan></text>
+</svg>

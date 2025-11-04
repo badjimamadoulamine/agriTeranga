@@ -46,7 +46,8 @@ const AdminFormations = () => {
     price: '',
     maxParticipants: '',
     instructor: '',
-    startDate: ''
+    startDate: '',
+    isPublished: true
   })
 
   // Détecter si on est dans un contexte Super Admin
@@ -117,7 +118,8 @@ const AdminFormations = () => {
         ...newFormation,
         maxParticipants: parseInt(newFormation.maxParticipants),
         price: parseFloat(newFormation.price),
-        duration: parseInt(newFormation.duration)
+        duration: parseInt(newFormation.duration),
+        isPublished: newFormation.isPublished
       })
       setShowCreateModal(false)
       setNewFormation({
@@ -128,7 +130,8 @@ const AdminFormations = () => {
         price: '',
         maxParticipants: '',
         instructor: '',
-        startDate: ''
+        startDate: '',
+        isPublished: true
       })
     } catch (error) {
       alert(`Erreur lors de la création: ${error.message}`)
@@ -660,6 +663,23 @@ const AdminFormations = () => {
                     value={newFormation.startDate}
                     onChange={(e) => setNewFormation({...newFormation, startDate: e.target.value})}
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isPublished"
+                      checked={newFormation.isPublished}
+                      onChange={(e) => setNewFormation({...newFormation, isPublished: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
+                      Publiée (visible par les producteurs)
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Les formations publiées apparaîtront dans le tableau de bord des producteurs
+                  </p>
                 </div>
               </div>
               <div className="flex items-center justify-end space-x-3 mt-6">

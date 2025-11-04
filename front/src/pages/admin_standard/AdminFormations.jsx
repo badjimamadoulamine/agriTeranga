@@ -80,7 +80,9 @@ const AdminFormations = () => {
     togglePublish,
     createFormation,
     updateFormation,
-    deleteFormation
+    deleteFormation,
+    categoriesLoading,
+    categoriesError
   } = useFormations({
     status: statusFilter === 'all' ? undefined : statusFilter,
     category: categoryFilter === 'all' ? undefined : categoryFilter,
@@ -403,19 +405,37 @@ const AdminFormations = () => {
             <option value="published">Publiées</option>
             <option value="draft">Brouillons</option>
           </select>
-          <select 
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-          >
-            <option value="all">Toutes les catégories</option>
-            {Array.isArray(categories) && categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select 
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              disabled={categoriesLoading}
+            >
+              <option value="all">Toutes les catégories</option>
+              {categoriesLoading ? (
+                <option value="" disabled>Chargement...</option>
+              ) : categoriesError ? (
+                <option value="" disabled>Erreur de chargement</option>
+              ) : (
+                Array.isArray(categories) && categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))
+              )}
+            </select>
+            {categoriesError && (
+              <button
+                onClick={refetch}
+                className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Réessayer"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <select 
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={itemsPerPage}
@@ -453,10 +473,34 @@ const AdminFormations = () => {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Catégorie</label>
-                  <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }} className="w-full px-3 py-2 border rounded">
-                    <option value="all">Toutes les catégories</option>
-                    {Array.isArray(categories) && categories.map(category => (<option key={category} value={category}>{category}</option>))}
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={categoryFilter} 
+                      onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }} 
+                      className="w-full px-3 py-2 border rounded pr-8" 
+                      disabled={categoriesLoading}
+                    >
+                      <option value="all">Toutes les catégories</option>
+                      {categoriesLoading ? (
+                        <option value="" disabled>Chargement...</option>
+                      ) : categoriesError ? (
+                        <option value="" disabled>Erreur de chargement</option>
+                      ) : (
+                        Array.isArray(categories) && categories.map(category => (
+                          <option key={category} value={category}>{category}</option>
+                        ))
+                      )}
+                    </select>
+                    {categoriesError && (
+                      <button
+                        onClick={refetch}
+                        className="absolute right-6 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        title="Réessayer"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Résultats par page</label>

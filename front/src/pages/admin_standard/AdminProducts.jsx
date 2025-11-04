@@ -19,9 +19,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { useProducts, usePendingProducts } from '../../hooks/useApi'
-import apiService from '../../services/apiService'
-import { useEffect } from 'react'
+import { useProducts, usePendingProducts, useCategories } from '../../hooks/useApi'
 import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
@@ -79,6 +77,14 @@ const AdminProducts = () => {
     refetch: refetchPending,
     approveProduct
   } = usePendingProducts()
+
+  // Hook pour récupérer les catégories de produits
+  const { 
+    categories, 
+    loading: categoriesLoading, 
+    error: categoriesError, 
+    refetch: refetchCategories 
+  } = useCategories('products')
 
   const handleSearch = (value) => {
     setSearchTerm(value)
@@ -167,28 +173,6 @@ const AdminProducts = () => {
   const stockValue = products.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0)
   const activeProducts = products.filter(p => getProductStatus(p) === 'active').length
   const pendingCount = pendingProducts.length
-
-  const [categories, setCategories] = React.useState([])
-
-  // Charger les catégories depuis le backend (schéma Product)
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      try {
-        const res = await apiService.getProductCategories()
-        const serverCats = (res && res.data && res.data.categories) || []
-        if (mounted && serverCats.length > 0) setCategories(serverCats)
-      } catch (err) {
-        // fallback: extraire depuis la liste de produits si disponible
-        const fallback = [...new Set(products.map(p => p.category).filter(Boolean))]
-        if (mounted) setCategories(fallback)
-      }
-    }
-
-    load()
-    return () => { mounted = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Recent products preview (most recent)
   const [showRecent, setShowRecent] = React.useState(false)
@@ -454,19 +438,37 @@ const AdminProducts = () => {
             </div>
 
             {/* Category Filter */}
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value)
-                setCurrentPage(1)
-              }}
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value)
+                  setCurrentPage(1)
+                }}
+                disabled={categoriesLoading}
+              >
+                <option value="all">Toutes les catégories</option>
+                {categoriesLoading ? (
+                  <option value="" disabled>Chargement...</option>
+                ) : categoriesError ? (
+                  <option value="" disabled>Erreur de chargement</option>
+                ) : (
+                  categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))
+                )}
+              </select>
+              {categoriesError && (
+                <button
+                  onClick={refetchCategories}
+                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  title="Réessayer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
             {/* Status Filter */}
             <select

@@ -34,12 +34,34 @@ const useProducerData = () => {
     try {
       const response = await apiService.getProducerStats();
       if (response.status === 'success' && response.data) {
-        setStats(response.data);
+        // Extraire les stats depuis la réponse du dashboard
+        const dashboardData = response.data;
+        setStats({
+          totalProducts: dashboardData.totalProducts || 0,
+          totalOrders: dashboardData.totalOrders || 0,
+          totalRevenue: dashboardData.totalRevenue || 0,
+          averageRating: dashboardData.averageRating || 0
+        });
+      } else {
+        // Si pas de données, utiliser des valeurs par défaut
+        setStats({
+          totalProducts: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          averageRating: 0
+        });
       }
     } catch (err) {
       console.error('Erreur lors du chargement des statistiques:', err);
-      toast.error('Erreur lors du chargement des statistiques');
-      toast.info('Vérifiez votre connexion internet');
+      // Utiliser des valeurs par défaut en cas d'erreur
+      setStats({
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        averageRating: 0
+      });
+      // toast.error('Erreur lors du chargement des statistiques');
+      // toast.info('Vérifiez votre connexion internet');
     }
   }, []);
 

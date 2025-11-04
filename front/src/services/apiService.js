@@ -424,8 +424,8 @@ class ApiService {
    * Statistiques du producteur
    */
   async getProducerStats() {
-    // Backend route is /users/stats (protected, producteur only)
-    return await this.request('/users/stats');
+    // Get producer dashboard data which includes stats
+    return await this.request('/users/producer/dashboard');
   }
 
   /**
@@ -701,8 +701,8 @@ class ApiService {
     }
     if (statusValue) params.append('status', statusValue);
 
-    // Backend route lives under /users/producer/orders
-    return await this.request(`/users/producer/orders?${params.toString()}`);
+    // Backend route is /orders/producer/list for producer orders
+    return await this.request(`/orders/producer/list?${params.toString()}`);
   }
 
   /**

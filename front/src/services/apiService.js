@@ -93,13 +93,23 @@ class ApiService {
       return response.data;
     } catch (error) {
       console.error('API Error:', error);
-      
+
       if (error.response) {
         // Erreur avec réponse du serveur
+        const data = error.response.data || {};
+        // Concaténer les détails de validation si présents
+        let detailedMsg = data.message || 'Erreur serveur';
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          const first = data.errors[0];
+          const details = data.errors
+            .map(e => `${e.field ? `${e.field}: ` : ''}${e.message}`)
+            .join(' | ');
+          detailedMsg = `${detailedMsg} - ${details}`;
+        }
         throw {
           status: error.response.status,
-          message: error.response.data?.message || 'Erreur serveur',
-          data: error.response.data
+          message: detailedMsg,
+          data
         };
       } else if (error.request) {
         // Pas de réponse (timeout, problème réseau)
@@ -564,6 +574,53 @@ class ApiService {
     });
   }
 
+  // =====================
+  // COMMANDES (consommateur)
+  // =====================
+  /**
+   * Créer une commande (consommateur)
+   */
+  async createOrder(orderData) {
+    return await this.request('/orders', {
+      method: 'POST',
+      data: orderData
+    });
+  }
+
+  /**
+   * Mes commandes (consommateur)
+   */
+  async getConsumerOrders(page = 1, limit = 50) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+    // Backend exposes GET /orders for current consumer (protected)
+    return await this.request(`/orders?${params.toString()}`);
+  }
+
+  // Alias explicite pour éviter la collision avec le producteur
+  async getMyOrdersConsumer(page = 1, limit = 50) {
+    return await this.getConsumerOrders(page, limit);
+  }
+
+  /**
+   * Détails d'une commande (consommateur)
+   */
+  async getOrderDetails(orderId) {
+    return await this.request(`/orders/${orderId}`);
+  }
+
+  /**
+   * Annuler une commande (consommateur)
+   */
+  async cancelOrder(orderId, reason = '') {
+    return await this.request(`/orders/${orderId}/cancel`, {
+      method: 'PATCH',
+      data: { reason }
+    });
+  }
+
   /**
    * Dépublier un produit (le retirer du frontend)
    */
@@ -752,7 +809,8 @@ class ApiService {
       limit: limit.toString()
     });
     if (filters.status) params.append('status', filters.status);
-    return await this.request(`/deliveries/my?${params.toString()}`);
+    // Backend route: GET /deliveries (protégé, filtre par livreur côté serveur)
+    return await this.request(`/deliveries?${params.toString()}`);
   }
 
   /**
@@ -766,7 +824,7 @@ class ApiService {
     if (filters.status) params.append('status', filters.status);
     if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.append('dateTo', filters.dateTo);
-    return await this.request(`/deliveries/history?${params.toString()}`);
+    return await this.request(`/deliveries/my/history?${params.toString()}`);
   }
 
   /**

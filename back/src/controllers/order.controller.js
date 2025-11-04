@@ -1,6 +1,8 @@
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const User = require('../models/User');
+const Delivery = require('../models/Delivery');
 
 // Créer une commande
 exports.createOrder = async (req, res) => {
@@ -65,6 +67,74 @@ exports.createOrder = async (req, res) => {
     );
 
     await order.populate('items.product items.producer consumer');
+
+    // Si livraison à domicile, tenter d'assigner automatiquement un livreur disponible
+    if (deliveryInfo && deliveryInfo.method === 'home-delivery') {
+      try {
+        const addr = deliveryInfo.address || {};
+        const city = addr.city || '';
+        const region = addr.region || '';
+
+        // Chercher des livreurs disponibles dans la même ville/zone si possible
+        let candidate = await User.findOne({
+          role: 'livreur',
+          isActive: true,
+          'livreurInfo.isAvailable': true,
+          ...(city ? { 'livreurInfo.deliveryZone': city } : {})
+        }).sort({ lastLogin: -1 });
+
+        // Fallback: essayer par région
+        if (!candidate && region) {
+          candidate = await User.findOne({
+            role: 'livreur',
+            isActive: true,
+            'livreurInfo.isAvailable': true,
+            'livreurInfo.deliveryZone': region
+          }).sort({ lastLogin: -1 });
+        }
+
+        // Fallback global: n'importe quel livreur disponible
+        if (!candidate) {
+          candidate = await User.findOne({
+            role: 'livreur',
+            isActive: true,
+            'livreurInfo.isAvailable': true
+          }).sort({ lastLogin: -1 });
+        }
+
+        if (candidate) {
+          // Créer une livraison liée
+          const delivery = await Delivery.create({
+            order: order._id,
+            deliverer: candidate._id,
+            status: 'assigned',
+            pickupLocation: {
+              address: 'À définir',
+              coordinates: { lat: null, lng: null }
+            },
+            deliveryLocation: {
+              address: [addr.street, addr.city, addr.region].filter(Boolean).join(', '),
+              coordinates: addr.coordinates || undefined
+            },
+            estimatedTime: new Date(Date.now() + 2 * 60 * 60 * 1000)
+          });
+
+          // Mettre à jour la commande avec le livreur
+          order.deliveryInfo.deliverer = candidate._id;
+          order.status = 'shipped';
+          order.statusHistory.push({
+            status: 'shipped',
+            updatedBy: req.user.id,
+            timestamp: Date.now()
+          });
+          await order.save();
+          await order.populate('deliveryInfo.deliverer');
+        }
+      } catch (assignErr) {
+        // Ne pas bloquer la création de commande si l'assignation échoue
+        console.error('Auto-assign delivery failed:', assignErr);
+      }
+    }
 
     res.status(201).json({
       status: 'success',

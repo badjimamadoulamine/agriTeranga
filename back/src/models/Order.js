@@ -26,7 +26,13 @@ const orderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
     unique: true,
-    required: true
+    default: function() {
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `ORD${year}${month}${random}`;
+    }
   },
   consumer: {
     type: mongoose.Schema.Types.ObjectId,
@@ -110,18 +116,6 @@ const orderSchema = new mongoose.Schema({
   }]
 }, {
   timestamps: true
-});
-
-// Générer un numéro de commande unique
-orderSchema.pre('save', async function(next) {
-  if (!this.orderNumber) {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    this.orderNumber = `ORD${year}${month}${random}`;
-  }
-  next();
 });
 
 module.exports = mongoose.model('Order', orderSchema);

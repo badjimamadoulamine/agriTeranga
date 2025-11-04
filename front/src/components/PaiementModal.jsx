@@ -4,27 +4,102 @@ import waveImg from "../assets/wave.jpg";
 import cashImg from "../assets/cash.jpg";
 import WavePaymentModal from "./WavePaymentModal";
 import { useCart } from "../contexts/CartContext";
+import apiService from "../services/apiService";
+import { toast } from "react-toastify";
 
 const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
   const [selected, setSelected] = useState(null);
   const [showWavePayment, setShowWavePayment] = useState(false);
   const navigate = useNavigate();
-  const { getTotalPrice } = useCart();
+  const { cartItems, getTotalPrice } = useCart();
   const productsTotal = getTotalPrice();
   const totalToPay = productsTotal + (Number(deliveryFee) || 0);
 
   if (!isOpen) return null;
 
-  const handleConfirmation = () => {
+  // Récupérer les items depuis le panier serveur (ids produits valides)
+  const buildItemsFromServerCart = async () => {
+    try {
+      const resp = await apiService.getCart();
+      const payload = resp || {};
+      const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
+      const itemsArr = Array.isArray(cart?.items) ? cart.items : [];
+      if (itemsArr.length > 0) {
+        return itemsArr.map((it) => {
+          const raw = it?.product;
+          const productId = typeof raw === 'string' ? raw : (raw?._id || raw?.id);
+          const qty = Math.max(1, Number(it?.quantity) || 1);
+          return { product: productId, quantity: qty };
+        });
+      }
+      // Si panier serveur vide mais on a un panier local, tenter une synchronisation rapide
+      if ((cartItems || []).length > 0) {
+        for (const ci of cartItems) {
+          const pid = ci.id || ci.productId || ci._id;
+          if (pid) {
+            try {
+              await apiService.addToCart(pid, ci.quantity || 1);
+            } catch {}
+          }
+        }
+        // Recharger depuis le serveur
+        const resp2 = await apiService.getCart();
+        const payload2 = resp2 || {};
+        const cart2 = (payload2.data && (payload2.data.cart || payload2.data)) || payload2.cart;
+        const itemsArr2 = Array.isArray(cart2?.items) ? cart2.items : [];
+        if (itemsArr2.length > 0) {
+          return itemsArr2.map((it) => {
+            const raw = it?.product;
+            const productId = typeof raw === 'string' ? raw : (raw?._id || raw?.id);
+            const qty = Math.max(1, Number(it?.quantity) || 1);
+            return { product: productId, quantity: qty };
+          });
+        }
+      }
+    } catch {}
+    // Fallback local
+    return (cartItems || []).map((ci) => ({
+      product: ci.id || ci.productId || ci._id,
+      quantity: ci.quantity || 1
+    }));
+  };
+
+  const handleConfirmation = async () => {
     if (!selected) return;
 
     if (selected === "wave") {
       // Ouvrir le modal de paiement Wave
       setShowWavePayment(true);
     } else if (selected === "cash") {
-      // Pour Cash, on redirige vers la page de livraison
-      onClose(); // Fermer le modal d'abord
-      navigate('/livraison'); // Rediriger vers la page de livraison
+      // Pour Cash, ne pas fermer le modal tant que la création n'a pas réussi
+      try {
+        const items = await buildItemsFromServerCart();
+        // Validation des items (ObjectId 24 hex et quantités valides)
+        const isValidObjectId = (v) => typeof v === 'string' && /^[0-9a-fA-F]{24}$/.test(v);
+        const validItems = (items || [])
+          .map(it => ({ product: String(it.product || ''), quantity: Math.max(1, Number(it.quantity) || 1) }))
+          .filter(it => isValidObjectId(it.product));
+        if (validItems.length === 0) {
+          toast.error("Votre panier n'est pas valide. Veuillez vérifier vos articles puis réessayer.");
+          return;
+        }
+        // Appel backend: créer la commande (demandé: items, paymentMethod, deliveryInfo)
+        try {
+          await apiService.createOrder({
+            items: validItems,
+            paymentMethod: 'cash-on-delivery',
+            deliveryInfo: { method: 'home-delivery', address: {} }
+          });
+        } catch (e) {
+          // Afficher l'erreur renvoyée par l'API et stopper le flux (pas de fallback local, pas de navigation)
+          const msg = (e && e.message) ? e.message : "La création de la commande a échoué";
+          toast.error(msg);
+          return;
+        }
+      } catch {}
+      // Fermer le modal et rediriger seulement si la création a réussi
+      onClose();
+      navigate('/livraison');
     }
   };
 
@@ -33,10 +108,35 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
     onClose();
   };
 
-  const handleWavePaymentSuccess = () => {
+  const handleWavePaymentSuccess = async () => {
     setShowWavePayment(false);
     onClose();
     // Rediriger vers la page de confirmation ou livraison
+    try {
+      const items = await buildItemsFromServerCart();
+      // Validation des items (ObjectId 24 hex et quantités valides)
+      const isValidObjectId = (v) => typeof v === 'string' && /^[0-9a-fA-F]{24}$/.test(v);
+      const validItems = (items || [])
+        .map(it => ({ product: String(it.product || ''), quantity: Math.max(1, Number(it.quantity) || 1) }))
+        .filter(it => isValidObjectId(it.product));
+      if (validItems.length === 0) {
+        toast.error("Votre panier n'est pas valide. Veuillez vérifier vos articles puis réessayer.");
+        return;
+      }
+
+      // Appel backend: créer la commande
+      try {
+        await apiService.createOrder({
+          items: validItems,
+          paymentMethod: 'mobile-money',
+          deliveryInfo: { method: 'home-delivery', address: {} }
+        });
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : "La création de la commande a échoué";
+        toast.error(msg);
+        return;
+      }
+    } catch {}
     navigate('/livraison');
   };
 

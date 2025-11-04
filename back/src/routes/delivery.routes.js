@@ -47,6 +47,9 @@ router.get('/', protect, restrictTo('livreur', 'admin'), deliveryController.getA
  */
 router.get('/available', protect, restrictTo('livreur'), deliveryController.getAvailableDeliveries);
 
+// Route for current deliverer's deliveries (must be before ':id')
+router.get('/my', protect, restrictTo('livreur'), deliveryController.getMyDeliveries);
+
 /**
  * @swagger
  * /deliveries/{id}:
@@ -65,7 +68,7 @@ router.get('/available', protect, restrictTo('livreur'), deliveryController.getA
  *       200:
  *         description: Détails de la livraison
  */
-router.get('/:id', protect, deliveryController.getDelivery);
+router.get('/:id([a-fA-F0-9]{24})', protect, deliveryController.getDelivery);
 
 /**
  * @swagger
@@ -85,7 +88,7 @@ router.get('/:id', protect, deliveryController.getDelivery);
  *       200:
  *         description: Livraison acceptée
  */
-router.patch('/:id/accept', protect, restrictTo('livreur'), deliveryController.acceptDelivery);
+router.patch('/:id([a-fA-F0-9]{24})/accept', protect, restrictTo('livreur'), deliveryController.acceptDelivery);
 
 /**
  * @swagger
@@ -119,7 +122,7 @@ router.patch('/:id/accept', protect, restrictTo('livreur'), deliveryController.a
  *       200:
  *         description: Statut mis à jour
  */
-router.patch('/:id/status', protect, restrictTo('livreur'), deliveryController.updateDeliveryStatus);
+router.patch('/:id([a-fA-F0-9]{24})/status', protect, restrictTo('livreur'), deliveryController.updateDeliveryStatus);
 
 /**
  * @swagger
@@ -148,7 +151,7 @@ router.patch('/:id/status', protect, restrictTo('livreur'), deliveryController.u
  *       200:
  *         description: Livraison terminée
  */
-router.patch('/:id/complete', protect, restrictTo('livreur'), deliveryController.completeDelivery);
+router.patch('/:id([a-fA-F0-9]{24})/complete', protect, restrictTo('livreur'), deliveryController.completeDelivery);
 
 /**
  * @swagger

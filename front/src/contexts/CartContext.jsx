@@ -35,15 +35,43 @@ export const CartProvider = ({ children }) => {
     });
   };
 
-  // Charger le panier: depuis l'API si authentifié, sinon localStorage
+  // Charger le panier: depuis l'API si authentifié (avec fusion locale->serveur), sinon localStorage
   useEffect(() => {
     const load = async () => {
       if (isAuthenticated) {
         try {
+          // 1) Charger le panier serveur
           const resp = await apiService.getCart();
           const payload = resp || {};
           const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
-          const items = mapServerCartToClient(cart);
+          let items = mapServerCartToClient(cart);
+
+          // 2) Fusionner le panier local (si présent) vers le serveur
+          const savedLocal = localStorage.getItem('cart');
+          if (savedLocal) {
+            try {
+              const localItems = JSON.parse(savedLocal);
+              if (Array.isArray(localItems) && localItems.length > 0) {
+                for (const li of localItems) {
+                  const pid = li.id || li.productId || li._id;
+                  const qty = Math.max(1, Number(li.quantity) || 1);
+                  if (pid) {
+                    try {
+                      await apiService.addToCart(pid, qty);
+                    } catch {}
+                  }
+                }
+                // Recharger le panier serveur après fusion
+                const resp2 = await apiService.getCart();
+                const payload2 = resp2 || {};
+                const cart2 = (payload2.data && (payload2.data.cart || payload2.data)) || payload2.cart;
+                items = mapServerCartToClient(cart2);
+                // Nettoyer le cache local pour éviter les doublons à l'avenir
+                localStorage.removeItem('cart');
+              }
+            } catch {}
+          }
+
           setCartItems(items);
         } catch (e) {
           // fallback local si erreur API

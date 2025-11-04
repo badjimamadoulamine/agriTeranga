@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CartProvider } from './contexts/CartContext'
 import { ToastProvider } from './contexts/ToastContext'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import Home from './pages/Home'
 import About from './pages/About'
 import Login from './pages/Login'
@@ -36,6 +38,7 @@ import ErrorSystemTest from './components/ErrorSystemTest'
 import Experts from './pages/Experts'
 import Vendeurs from './pages/Vendeurs'
 import Livraison from './pages/Livraison'
+import Commandes from './pages/Commandes'
 
 function AppContent() {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
@@ -78,6 +81,7 @@ function AppContent() {
           <Route path="/sellers" element={<Vendeurs onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/test-errors" element={<ErrorSystemTest />} />
           <Route path="/livraison" element={<Livraison onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
+          <Route path="/commandes" element={<Commandes onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
 
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -132,6 +136,7 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <AppContent />
+          <ToastContainer position="top-right" autoClose={5000} newestOnTop closeOnClick pauseOnFocusLoss draggable pauseOnHover />
         </CartProvider>
       </AuthProvider>
     </ToastProvider>

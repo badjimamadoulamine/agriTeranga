@@ -13,6 +13,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
     identifier: '',
     password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   const googleBtnRef = React.useRef(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -287,17 +288,31 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
               required
               helpText="Mot de passe de votre compte AgriTeranga"
             >
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 border-2 border-[#2D5F3F] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D5F3F] focus:border-transparent ${
-                  errors.password ? 'border-red-500' : ''
-                }`}
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 border-2 border-[#2D5F3F] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D5F3F] focus:border-transparent ${
+                    errors.password ? 'border-red-500' : ''
+                  }`}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-600 hover:text-gray-800"
+                  aria-label="Afficher le mot de passe"
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 110-10 5 5 0 010 10z"/><path d="M12 9a3 3 0 100 6 3 3 0 000-6z"/></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M3.53 2.47a.75.75 0 10-1.06 1.06l2.09 2.09C2.19 7.04 1 9.02 1 12c0 0 3 7 11 7 2.36 0 4.33-.62 5.91-1.6l2.56 2.56a.75.75 0 101.06-1.06l-19-19zM12 17c-5.59 0-8.32-4.41-8.95-5.63.47-.91 1.55-2.66 3.31-3.98l2.1 2.1A5 5 0 0012 17zM9.88 8.76l1.55 1.55A1.99 1.99 0 0012 10c1.1 0 2 .9 2 2 0 .23-.04.45-.11.66l1.61 1.61A4 4 0 009.88 8.76z"/></svg>
+                  )}
+                </button>
+              </div>
             </FieldWithError>
 
             {/* Login Button */}

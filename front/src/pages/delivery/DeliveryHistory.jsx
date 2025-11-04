@@ -1,55 +1,22 @@
 import DeliveryLayout from '../../layouts/DeliveryLayout';
-import { Search, Calendar, Filter } from 'lucide-react';
+import { Search, Calendar, Filter, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
+import useDeliveryData from '../../hooks/useDeliveryData';
 
 const DeliveryHistory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [status, setStatus] = useState('');
 
-  // Delivery history data (from mockup)
-  const deliveryHistory = [
-    {
-      id: 1,
-      name: 'Mariama Ba',
-      location: 'Maristes, Dakar',
-      eventType: 'Heure de livraison',
-      datetime: '10/05/2024 - 14:35',
-      status: 'Livrée'
-    },
-    {
-      id: 2,
-      name: 'Ibrahima Diallo',
-      location: 'Yoff, Dakar',
-      eventType: 'Heure de livraison',
-      datetime: '10/05/2024 - 11:10',
-      status: 'Livrée'
-    },
-    {
-      id: 3,
-      name: 'Coumba Ndiaye',
-      location: 'Sacré-Coeur 3, Dakar',
-      eventType: 'Heure d\'annulation',
-      datetime: '09/05/2024 - 16:20',
-      status: 'Annulée'
-    },
-    {
-      id: 4,
-      name: 'Ousmane Faye',
-      location: 'Fann Hock, Dakar',
-      eventType: 'Heure de livraison',
-      datetime: '09/05/2024 - 10:05',
-      status: 'Livrée'
-    },
-    {
-      id: 5,
-      name: 'Sophie Gomis',
-      location: 'Ngor, Dakar',
-      eventType: 'Heure de livraison',
-      datetime: '08/05/2024 - 17:45',
-      status: 'Livrée'
-    }
-  ];
+  const {
+    deliveryHistory,
+    loading,
+    error,
+    historyPagination,
+    filterHistoryByDateRange,
+    changeHistoryPage
+  } = useDeliveryData();
 
   const getStatusBadge = (status) => {
     const statusStyles = {
@@ -64,6 +31,34 @@ const DeliveryHistory = () => {
     );
   };
 
+  const normalizeText = (v) => (v || '').toString().toLowerCase();
+  const formatCustomerName = (customer) => {
+    if (typeof customer === 'string') return customer;
+    if (customer && customer.name) return customer.name;
+    if (customer && customer.firstName && customer.lastName) return `${customer.firstName} ${customer.lastName}`;
+    if (customer && customer.firstName) return customer.firstName;
+    return '';
+  };
+  const formatAddress = (address) => {
+    if (typeof address === 'string') return address;
+    if (address && address.address) return address.address;
+    if (address && address.fullAddress) return address.fullAddress;
+    return '';
+  };
+
+  const filtered = (deliveryHistory || []).filter((d) => {
+    const q = normalizeText(searchTerm);
+    if (!q) return true;
+    const name = normalizeText(formatCustomerName(d.customer));
+    const addr = normalizeText(formatAddress(d.deliveryAddress));
+    const prod = normalizeText(d.productName);
+    return name.includes(q) || addr.includes(q) || prod.includes(q);
+  });
+
+  const onFilter = () => {
+    filterHistoryByDateRange(startDate || '', endDate || '', status || '');
+  };
+
   return (
     <DeliveryLayout>
       <div className="max-w-6xl">
@@ -73,7 +68,7 @@ const DeliveryHistory = () => {
         </h1>
 
         {/* Filter Bar */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -111,43 +106,98 @@ const DeliveryHistory = () => {
             </div>
           </div>
 
+          <div className="relative">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#59C94F]"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="delivered">Livrée</option>
+              <option value="completed">Terminée</option>
+              <option value="cancelled">Annulée</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          </div>
+
           {/* Filter Button */}
-          <button className="flex items-center gap-2 px-5 py-2 bg-[#59C94F] text-white rounded-lg hover:bg-[#4CAF50] transition-colors">
+          <button onClick={onFilter} className="flex items-center gap-2 px-5 py-2 bg-[#59C94F] text-white rounded-lg hover:bg-[#4CAF50] transition-colors">
             <Filter className="w-4 h-4" />
             <span>Filtrer</span>
           </button>
         </div>
 
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#59C94F]"></div>
+          </div>
+        )}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
+            {error}
+          </div>
+        )}
+
         {/* Delivery History List */}
         <div className="space-y-4">
-          {deliveryHistory.map((delivery) => (
-            <div
-              key={delivery.id}
-              className="bg-white rounded-lg p-5 border border-gray-200 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center justify-between">
-                {/* Left: Recipient Info */}
-                <div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-1">
-                    {delivery.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">{delivery.location}</p>
-                </div>
+          {!loading && filtered.map((delivery) => {
+            const name = formatCustomerName(delivery.customer) || 'Client';
+            const address = formatAddress(delivery.deliveryAddress) || '';
+            const isCancelled = delivery.status === 'cancelled';
+            const isDelivered = delivery.status === 'delivered' || delivery.status === 'completed';
+            const eventType = isCancelled ? "Heure d'annulation" : 'Heure de livraison';
+            const when = delivery.completedDate || delivery.deliveredAt || delivery.cancelledAt || delivery.updatedAt || delivery.createdAt;
+            const datetime = when ? new Date(when).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+            const statusLabel = isCancelled ? 'Annulée' : 'Livrée';
 
-                {/* Middle: Event Details */}
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">{delivery.eventType}</p>
-                  <p className="text-sm font-bold text-gray-800">{delivery.datetime}</p>
-                </div>
+            return (
+              <div
+                key={delivery.id}
+                className="bg-white rounded-lg p-5 border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-1">
+                      {name}
+                    </h3>
+                    <p className="text-sm text-gray-500">{address}</p>
+                  </div>
 
-                {/* Right: Status Badge */}
-                <div>
-                  {getStatusBadge(delivery.status)}
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 mb-1">{eventType}</p>
+                    <p className="text-sm font-bold text-gray-800">{datetime}</p>
+                  </div>
+
+                  <div>
+                    {getStatusBadge(statusLabel)}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {historyPagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <button
+              onClick={() => changeHistoryPage(historyPagination.page - 1)}
+              disabled={historyPagination.page === 1}
+              className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
+            >
+              Précédent
+            </button>
+            <span className="px-3 py-1 text-sm">
+              Page {historyPagination.page} sur {historyPagination.totalPages}
+            </span>
+            <button
+              onClick={() => changeHistoryPage(historyPagination.page + 1)}
+              disabled={historyPagination.page === historyPagination.totalPages}
+              className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
+            >
+              Suivant
+            </button>
+          </div>
+        )}
       </div>
     </DeliveryLayout>
   );

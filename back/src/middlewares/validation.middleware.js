@@ -80,7 +80,7 @@ exports.schemas = {
   createOrder: Joi.object({
     items: Joi.array().items(
       Joi.object({
-        product: Joi.string().required(),
+        product: Joi.string().hex().length(24).required(),
         quantity: Joi.number().required().min(1)
       })
     ).required().min(1),

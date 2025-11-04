@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/order.controller');
 const { protect, restrictTo } = require('../middlewares/auth.middleware');
+const { validate, schemas } = require('../middlewares/validation.middleware');
 
 /**
  * @swagger
@@ -71,7 +72,7 @@ const { protect, restrictTo } = require('../middlewares/auth.middleware');
  *                 data:
  *                   $ref: '#/components/schemas/Order'
  */
-router.post('/', protect, orderController.createOrder);
+router.post('/', protect, validate(schemas.createOrder), orderController.createOrder);
 
 /**
  * @swagger
@@ -120,7 +121,7 @@ router.get('/', protect, orderController.getMyOrders);
  *       404:
  *         description: Commande non trouvée
  */
-router.get('/:id', protect, orderController.getOrder);
+router.get('/:id([0-9a-fA-F]{24})', protect, orderController.getOrder);
 
 /**
  * @swagger
@@ -152,7 +153,7 @@ router.get('/:id', protect, orderController.getOrder);
  *       200:
  *         description: Statut mis à jour
  */
-router.patch('/:id/status', protect, restrictTo('producteur', 'producer', 'livreur', 'deliverer', 'admin'), orderController.updateOrderStatus);
+router.patch('/:id([0-9a-fA-F]{24})/status', protect, restrictTo('producteur', 'producer', 'livreur', 'deliverer', 'admin'), orderController.updateOrderStatus);
 
 /**
  * @swagger
@@ -172,7 +173,7 @@ router.patch('/:id/status', protect, restrictTo('producteur', 'producer', 'livre
  *       200:
  *         description: Commande annulée
  */
-router.patch('/:id/cancel', protect, orderController.cancelOrder);
+router.patch('/:id([0-9a-fA-F]{24})/cancel', protect, orderController.cancelOrder);
 
 /**
  * @swagger

@@ -7,7 +7,7 @@ exports.getAllDeliveries = async (req, res) => {
     const { status, page = 1, limit = 10 } = req.query;
 
     const query = {};
-    if (req.user.role === 'deliverer') {
+    if (req.user.role === 'livreur') {
       query.deliverer = req.user.id;
     }
     if (status) query.status = status;
@@ -15,7 +15,13 @@ exports.getAllDeliveries = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const deliveries = await Delivery.find(query)
-      .populate('order')
+      .populate({
+        path: 'order',
+        populate: [
+          { path: 'consumer', select: 'firstName lastName phone' },
+          { path: 'items.product', select: 'name price images unit' }
+        ]
+      })
       .populate('deliverer', 'firstName lastName phone')
       .sort('-createdAt')
       .skip(skip)
@@ -70,7 +76,13 @@ exports.getAvailableDeliveries = async (req, res) => {
 exports.getDelivery = async (req, res) => {
   try {
     const delivery = await Delivery.findById(req.params.id)
-      .populate('order')
+      .populate({
+        path: 'order',
+        populate: [
+          { path: 'consumer', select: 'firstName lastName phone' },
+          { path: 'items.product', select: 'name price images unit' }
+        ]
+      })
       .populate('deliverer', 'firstName lastName phone');
 
     if (!delivery) {

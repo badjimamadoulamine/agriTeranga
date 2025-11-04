@@ -24,6 +24,7 @@ import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 
 const AdminProducts = () => {
   const location = useLocation()
@@ -183,6 +184,11 @@ const AdminProducts = () => {
   // Product details modal
   const [selectedProduct, setSelectedProduct] = React.useState(null)
   const [showDetails, setShowDetails] = React.useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+
+  const handleProfileUpdated = () => {
+    console.log('Profil mis à jour')
+  }
 
   const loadRecentProducts = async () => {
     setRecentLoading(true)
@@ -224,7 +230,7 @@ const AdminProducts = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <HeaderComponent 
             user={user} 
-            onOpenProfile={() => (window.location.href = isSuperAdminContext ? '/super-admin/settings' : '/admin/settings')} 
+            onOpenProfile={() => setShowProfileModal(true)} 
             onLogout={() => { 
               localStorage.clear(); 
               window.location.href = isSuperAdminContext ? '/login' : '/admin/login' 
@@ -254,7 +260,7 @@ const AdminProducts = () => {
         {isSuperAdminContext ? (
           <SuperAdminHeader 
             user={user} 
-            onOpenProfile={() => (window.location.href = '/super-admin/settings')} 
+            onOpenProfile={() => setShowProfileModal(true)} 
             onLogout={() => { 
               localStorage.clear(); 
               window.location.href = '/login' 
@@ -263,7 +269,7 @@ const AdminProducts = () => {
         ) : (
           <AdminHeader 
             user={user} 
-            onOpenProfile={() => (window.location.href = '/admin/settings')} 
+            onOpenProfile={() => setShowProfileModal(true)} 
             onLogout={() => { 
               localStorage.clear(); 
               window.location.href = '/admin/login' 
@@ -805,6 +811,14 @@ const AdminProducts = () => {
     </div>
         </main>
       </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

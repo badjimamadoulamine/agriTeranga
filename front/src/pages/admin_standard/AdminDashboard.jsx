@@ -21,6 +21,7 @@ import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 import apiService from '../../services/apiService'
 
 const AdminDashboard = () => {
@@ -34,6 +35,7 @@ const AdminDashboard = () => {
   // États pour les modals et actions rapides
   const [showProductModal, setShowProductModal] = useState(false)
   const [showFormationModal, setShowFormationModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [productForm, setProductForm] = useState({
     name: '',
     description: '',
@@ -87,8 +89,13 @@ const AdminDashboard = () => {
   }
 
   const handleOpenProfile = () => {
-    // Logique pour ouvrir le profil
-    console.log('Opening profile...')
+    setShowProfileModal(true)
+  }
+
+  const handleProfileUpdated = () => {
+    // Actualiser les informations utilisateur si nécessaire
+    // Le modal gère la mise à jour via l'API et les callbacks
+    console.log('Profil mis à jour')
   }
 
   // ==================== ACTIONS RAPIDES API ====================
@@ -708,6 +715,14 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

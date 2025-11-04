@@ -34,6 +34,7 @@ import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 import apiService from '../../services/apiService'
 
 const AdminUsers = () => {
@@ -71,6 +72,7 @@ const AdminUsers = () => {
   const [selectedUser, setSelectedUser] = useState(null)
   const [newRole, setNewRole] = useState('')
   const [operationLoading, setOperationLoading] = useState(null)
+  const [showProfileModal, setShowProfileModal] = useState(false)
 
   // Utilisation du hook pour récupérer les utilisateurs
   const { 
@@ -401,7 +403,11 @@ const AdminUsers = () => {
   }
 
   const handleOpenProfile = () => {
-    console.log('Opening profile...')
+    setShowProfileModal(true)
+  }
+
+  const handleProfileUpdated = () => {
+    console.log('Profil mis à jour')
   }
 
   if (!user) {
@@ -992,6 +998,14 @@ const AdminUsers = () => {
           </div>
         </main>
       </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

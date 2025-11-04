@@ -22,6 +22,7 @@ import apiService from '../../services/apiService'
 import { toast } from 'react-toastify'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 
 const SuperAdminDashboard = () => {
   const navigate = useNavigate()
@@ -30,6 +31,7 @@ const SuperAdminDashboard = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [adminActivity, setAdminActivity] = useState([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   
   // Récupérer l'utilisateur super admin
   const user = React.useMemo(() => {
@@ -249,8 +251,12 @@ const SuperAdminDashboard = () => {
   }
 
   const handleOpenProfile = () => {
-    // Logique pour ouvrir le profil
-    console.log('Opening profile...')
+    setShowProfileModal(true)
+  }
+
+  const handleProfileUpdated = () => {
+    // Actualiser les informations utilisateur si nécessaire
+    console.log('Profil mis à jour')
   }
 
   if (!user) {
@@ -429,6 +435,14 @@ const SuperAdminDashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

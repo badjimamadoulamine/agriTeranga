@@ -25,6 +25,7 @@ import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 
 const AdminFormations = () => {
   const location = useLocation()
@@ -38,6 +39,11 @@ const AdminFormations = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedFormation, setSelectedFormation] = useState(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+
+  const handleProfileUpdated = () => {
+    console.log('Profil mis à jour')
+  }
   const [newFormation, setNewFormation] = useState({
     title: '',
     description: '',
@@ -272,7 +278,7 @@ const AdminFormations = () => {
         {isSuperAdminContext ? (
           <SuperAdminHeader
             user={user}
-            onOpenProfile={() => (window.location.href = '/super-admin/settings')}
+            onOpenProfile={() => setShowProfileModal(true)}
             onLogout={() => { 
               localStorage.clear(); 
               window.location.href = '/login' 
@@ -281,7 +287,7 @@ const AdminFormations = () => {
         ) : (
           <AdminHeader
             user={user}
-            onOpenProfile={() => (window.location.href = '/admin/settings')}
+            onOpenProfile={() => setShowProfileModal(true)}
             onLogout={() => { 
               localStorage.clear(); 
               window.location.href = '/admin/login' 
@@ -871,6 +877,14 @@ const AdminFormations = () => {
           </div>
         </main>
       </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

@@ -16,10 +16,12 @@ import {
 } from 'lucide-react'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 
 const SuperAdminOrders = () => {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   
   // Récupérer l'utilisateur super admin
   const user = React.useMemo(() => {
@@ -39,7 +41,11 @@ const SuperAdminOrders = () => {
   }
 
   const handleOpenProfile = () => {
-    console.log('Opening profile...')
+    setShowProfileModal(true)
+  }
+
+  const handleProfileUpdated = () => {
+    console.log('Profil mis à jour')
   }
   const [orders, setOrders] = useState([
     {
@@ -365,6 +371,14 @@ const SuperAdminOrders = () => {
           </div>
         </main>
       </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

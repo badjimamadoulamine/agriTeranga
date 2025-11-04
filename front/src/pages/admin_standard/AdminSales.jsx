@@ -205,14 +205,7 @@ const AdminSales = () => {
   const loading = ordersLoading || statsLoading
   const error = ordersError || statsError
 
-  const user = React.useMemo(() => {
-    try {
-      const raw = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  }, [])
+  // REMOVED REDUNDANT 'user' DECLARATION HERE (Ligne 208)
 
   if (loading) {
     const SidebarComponent = isSuperAdminContext ? SuperAdminSidebar : AdminSidebar

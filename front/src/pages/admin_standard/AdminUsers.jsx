@@ -54,7 +54,7 @@ const AdminUsers = () => {
   const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
   
   // Déterminer quel stockage utiliser selon le contexte
-  const user = React.useMemo(() => {
+  const user = React.useMemo(() => { // PREMIÈRE DÉCLARATION (À CONSERVER)
     try {
       let storageKey
       if (isSuperAdminContext) {
@@ -142,7 +142,7 @@ const AdminUsers = () => {
 
   const openRoleModal = (user) => {
     if (!canModifyAdmin(user)) {
-      alert('Vous ne pouvez pas modifier le rôle d\u00e9 un autre administrateur — action réservée au super-admin.');
+      alert('Vous ne pouvez pas modifier le rôle d\'un autre administrateur — action réservée au super-admin.');
       return;
     }
     setSelectedUser(user)
@@ -333,14 +333,7 @@ const AdminUsers = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
-  const user = React.useMemo(() => {
-    try {
-      const raw = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  }, [])
+  // <--- L'ancienne DÉCLARATION REDONDANTE DE `user` ÉTAIT ICI ET A ÉTÉ SUPPRIMÉE --->
 
   if (loading) {
     return (

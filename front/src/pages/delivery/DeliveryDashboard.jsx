@@ -53,6 +53,9 @@ const DeliveryDashboard = () => {
     // Gestion du profil
     profile,
     profileLoading,
+    profileError,
+    updateProfile,
+    changePassword,
     getProfile,
     refreshProfile
   } = useDeliveryData();
@@ -703,11 +706,29 @@ const DeliveryDashboard = () => {
           </div>
         )}
 
+        {/* Avatar cliquable */}
+        <div className="flex justify-end mb-6">
+          <div 
+            onClick={() => setShowProfileModal(true)}
+            className="relative cursor-pointer group"
+          >
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold text-lg shadow-lg group-hover:shadow-xl transition-all">
+              {profile?.firstName?.[0] || 'L'}
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md">
+              <Settings className="w-3 h-3 text-green-600" />
+            </div>
+          </div>
+        </div>
+
         {/* Modal de profil */}
         <ProfileModal
           isOpen={showProfileModal}
           onClose={() => setShowProfileModal(false)}
-          userRole="livreur"
+          profile={profile}
+          onUpdateProfile={updateProfile}
+          onChangePassword={changePassword}
+          onRefreshProfile={refreshProfile}
         />
       </div>
     </DeliveryLayout>

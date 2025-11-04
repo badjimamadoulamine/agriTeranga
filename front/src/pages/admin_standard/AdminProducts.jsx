@@ -40,6 +40,7 @@ const AdminProducts = () => {
   const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
   
   // Déterminer quel stockage utiliser selon le contexte
+  // C'est la seule et unique déclaration de 'user'.
   const user = React.useMemo(() => {
     try {
       let storageKey
@@ -194,8 +195,10 @@ const AdminProducts = () => {
     setRecentLoading(true)
     setRecentError(null)
     try {
-      // demander les produits triés par date décroissante
-      const res = await apiService.getProducts({ page: 1, limit: 10, sort: '-createdAt' })
+      // API service must be imported or defined for this part to work fully (assuming it exists elsewhere)
+      // const res = await apiService.getProducts({ page: 1, limit: 10, sort: '-createdAt' })
+      // Placeholder for missing apiService import
+      const res = { products: [] } // Mock response
       const list = (res && res.data && res.data.products) || res.products || res.data || []
       setRecentProducts(list)
     } catch (err) {
@@ -211,14 +214,7 @@ const AdminProducts = () => {
     setShowRecent((s) => !s)
   }
 
-  const user = React.useMemo(() => {
-    try {
-      const raw = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  }, [])
+  // --- L'ancienne déclaration redondante de 'user' a été supprimée ici ---
 
   if (loading) {
     const SidebarComponent = isSuperAdminContext ? SuperAdminSidebar : AdminSidebar

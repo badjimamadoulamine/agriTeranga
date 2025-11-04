@@ -363,7 +363,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
               <p className="text-xs text-center text-red-600">VITE_GOOGLE_CLIENT_ID manquant</p>
             )}
           </form>
-          <div className="mt-4 text-center">
+          {/* <div className="mt-4 text-center">
             <button
               type="button"
               onClick={() => { onClose(); navigate('/admin/login'); }}
@@ -371,7 +371,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
             >
               Espace administrateur
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer */}

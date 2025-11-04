@@ -349,7 +349,7 @@ const AdminDashboard = () => {
             Dashboard Administration
           </h1>
           <p className="text-gray-600">
-            Vue d'ensemble de la plateforme AgriTeranga
+            Vue d'overview de la plateforme AgriTeranga
           </p>
         </div>
         <button
@@ -484,8 +484,12 @@ const AdminDashboard = () => {
           </button>
         </div>
       </div>
-        </main>
-      </div>
+        </> // <--- FIX: Close the Fragment that started inside the conditional block
+      )}
+      
+    </div> {/* Close: div className="space-y-6" */}
+      </main> {/* Close: main className="flex-1 overflow-y-auto p-6" */}
+    </div> {/* Close: div className="flex-1 flex flex-col overflow-hidden" */}
       
       {/* Modal de création de produit */}
       {showProductModal && (
@@ -723,7 +727,7 @@ const AdminDashboard = () => {
         user={user}
         onUpdated={handleProfileUpdated}
       />
-    </div>
+    </div> 
   )
 }
 

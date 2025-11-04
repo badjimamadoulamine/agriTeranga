@@ -350,12 +350,7 @@ class ApiService {
     return await this.getAdminDashboard();
   }
 
-  /**
-   * Statistiques livreur
-   */
-  async getDeliveryStats() {
-    return await this.request('/users/deliverer/stats');
-  }
+
 
   /**
    * Liste des utilisateurs avec filtres
@@ -835,28 +830,41 @@ class ApiService {
    * Statistiques du livreur
    */
   async getDeliveryStats() {
-    return await this.request('/users/deliverer/stats');
+    const response = await this.request('/deliveries');
+    if (response.status === 'success' && response.data?.deliveries) {
+      const deliveries = response.data.deliveries;
+      const stats = {
+        totalDeliveries: response.total || deliveries.length,
+        completedDeliveries: deliveries.filter(d => d.status === 'delivered').length,
+        pendingDeliveries: deliveries.filter(d => ['assigned', 'picked-up', 'in-transit'].includes(d.status)).length,
+        totalEarnings: deliveries.filter(d => d.status === 'delivered').length * 1000 // Calcul approximatif
+      };
+      return { status: 'success', data: stats };
+    }
+    return { status: 'success', data: { totalDeliveries: 0, completedDeliveries: 0, pendingDeliveries: 0, totalEarnings: 0 } };
   }
 
   /**
-   * Mes livraisons en cours
+   * Mes livraisons (pagination)
    */
-  async getMyActiveDeliveries() {
-    return await this.request('/deliveries/my/active');
-  }
-
-  /**
-   * Mes livraisons à venir
-   */
-  async getMyUpcomingDeliveries() {
-    return await this.request('/deliveries/my/upcoming');
+  async getMyDeliveries(page = 1, limit = 10, filters = {}) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (filters.status) params.append('status', filters.status);
+    return await this.request(`/deliveries?${params.toString()}`);
   }
 
   /**
    * Livraisons disponibles à accepter
    */
-  async getAvailableDeliveries() {
-    return await this.request('/deliveries/available');
+  async getAvailableDeliveries(page = 1, limit = 10, filters = {}) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    return await this.request(`/deliveries/available?${params.toString()}`);
   }
 
   /**
@@ -920,31 +928,7 @@ class ApiService {
   }
 
   /**
-   * Alias pour les livraisons disponibles (pagination)
-   */
-  async getAvailableDeliveries(page = 1, limit = 10, filters = {}) {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
-    if (filters.status) params.append('status', filters.status);
-    return await this.request(`/deliveries/available?${params.toString()}`);
-  }
-
-  /**
-   * Alias pour mes livraisons (pagination)
-   */
-  async getMyDeliveries(page = 1, limit = 10, filters = {}) {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
-    if (filters.status) params.append('status', filters.status);
-    return await this.request(`/deliveries/my?${params.toString()}`);
-  }
-
-  /**
-   * Alias pour l'historique des livraisons (pagination)
+   * Historique des livraisons (utilisant la route backend existante)
    */
   async getDeliveryHistory(page = 1, limit = 10, filters = {}) {
     const params = new URLSearchParams({
@@ -954,7 +938,35 @@ class ApiService {
     if (filters.status) params.append('status', filters.status);
     if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
     if (filters.dateTo) params.append('dateTo', filters.dateTo);
-    return await this.request(`/deliveries/history?${params.toString()}`);
+    
+    // Utiliser la route backend existante pour l'historique
+    const response = await this.request(`/deliveries/my/history?${params.toString()}`);
+    
+    // Normaliser les données pour correspondre à l'interface
+    if (response.status === 'success' && response.data) {
+      const deliveries = response.data.deliveries || [];
+      const history = deliveries.filter(d => d.status === 'delivered');
+      
+      return {
+        status: 'success',
+        data: {
+          history,
+          currentPage: page,
+          totalPages: Math.ceil((response.data.stats?.total || 0) / limit),
+          total: history.length
+        }
+      };
+    }
+    
+    return {
+      status: 'success',
+      data: {
+        history: [],
+        currentPage: page,
+        totalPages: 1,
+        total: 0
+      }
+    };
   }
 
   /**

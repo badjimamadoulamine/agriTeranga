@@ -57,11 +57,32 @@ const useDeliveryData = () => {
       const response = await apiService.getAvailableDeliveries(page, 10, filters);
       
       if (response.status === 'success' && response.data) {
-        setAvailableDeliveries(response.data.deliveries || []);
+        // Normaliser les données (les commandes deviennent des "livraisons disponibles")
+        const orders = response.data.orders || response.data.deliveries || [];
+        const normalized = orders.map((order) => ({
+          id: order.id || order._id,
+          productName: order.items?.[0]?.product?.name || 'Produit',
+          quantity: order.items?.[0]?.quantity || 1,
+          amount: order.totalPrice || 0,
+          customer: {
+            name: order.consumer?.firstName ? `${order.consumer.firstName} ${order.consumer.lastName || ''}` : 'Client',
+            phone: order.consumer?.phone || '+221 77 123 45 67'
+          },
+          orderDate: order.createdAt || new Date().toISOString(),
+          pickupAddress: {
+            address: 'Adresse du producteur' // À obtenir du producteur
+          },
+          deliveryAddress: order.deliveryInfo?.address || { address: 'Adresse non disponible' },
+          instructions: order.notes || 'Aucune instruction',
+          notes: order.notes || '',
+          productImage: order.items?.[0]?.product?.images?.[0] || '/api/placeholder/100'
+        }));
+        
+        setAvailableDeliveries(normalized);
         setAvailablePagination({
           page: response.data.currentPage || page,
           totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          total: response.data.total || orders.length
         });
       }
     } catch (err) {
@@ -81,16 +102,34 @@ const useDeliveryData = () => {
       const response = await apiService.getMyDeliveries(page, 10, filters);
       
       if (response.status === 'success' && response.data) {
-        setMyDeliveries(response.data.deliveries || []);
+        // Normaliser les données des livraisons
+        const deliveries = response.data.deliveries || [];
+        const normalized = deliveries.map((delivery) => ({
+          id: delivery.id || delivery._id,
+          productName: delivery.order?.items?.[0]?.product?.name || 'Produit',
+          quantity: delivery.order?.items?.[0]?.quantity || 1,
+          amount: delivery.order?.totalPrice || 0,
+          customer: {
+            name: delivery.order?.consumer?.firstName ? 
+              `${delivery.order.consumer.firstName} ${delivery.order.consumer.lastName || ''}` : 'Client',
+            phone: delivery.order?.consumer?.phone || '+221 77 123 45 67'
+          },
+          status: delivery.status,
+          deliveryAddress: delivery.deliveryLocation || { address: 'Adresse non disponible' },
+          orderDate: delivery.createdAt || new Date().toISOString()
+        }));
+        
+        setMyDeliveries(normalized);
         setMyDeliveriesPagination({
           page: response.data.currentPage || page,
           totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          total: response.data.total || deliveries.length
         });
       }
     } catch (err) {
       console.error('Erreur lors du chargement de mes livraisons:', err);
       setError(err.message || 'Erreur lors du chargement de mes livraisons');
+      toast.error('Erreur lors du chargement de mes livraisons');
     }
   }, []);
 
@@ -102,16 +141,30 @@ const useDeliveryData = () => {
       const response = await apiService.getDeliveryHistory(page, 10, filters);
       
       if (response.status === 'success' && response.data) {
-        setDeliveryHistory(response.data.history || []);
+        // Normaliser les données d'historique
+        const history = response.data.history || [];
+        const normalized = history.map((delivery) => ({
+          id: delivery.id || delivery._id,
+          productName: delivery.order?.items?.[0]?.product?.name || 'Produit',
+          customer: {
+            name: delivery.order?.consumer?.firstName ? 
+              `${delivery.order.consumer.firstName} ${delivery.order.consumer.lastName || ''}` : 'Client'
+          },
+          amount: delivery.order?.totalPrice || 0,
+          completedDate: delivery.updatedAt || delivery.createdAt
+        }));
+        
+        setDeliveryHistory(normalized);
         setHistoryPagination({
           page: response.data.currentPage || page,
           totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          total: response.data.total || history.length
         });
       }
     } catch (err) {
       console.error('Erreur lors du chargement de l\'historique:', err);
       setError(err.message || 'Erreur lors du chargement de l\'historique');
+      toast.error('Erreur lors du chargement de l\'historique');
     }
   }, []);
 

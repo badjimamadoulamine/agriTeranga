@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronDown, 
   Check, 
@@ -12,10 +12,12 @@ import {
   Truck,
   Calendar,
   Search,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 import DeliveryLayout from '../../layouts/DeliveryLayout';
 import useDeliveryData from '../../hooks/useDeliveryData';
+import ProfileModal from '../../components/ProfileModal';
 import {
   BarChart,
   Bar,
@@ -47,7 +49,12 @@ const DeliveryDashboard = () => {
     completeDelivery,
     filterMyDeliveriesByStatus,
     changeAvailablePage,
-    changeMyDeliveriesPage
+    changeMyDeliveriesPage,
+    // Gestion du profil
+    profile,
+    profileLoading,
+    getProfile,
+    refreshProfile
   } = useDeliveryData();
 
   const [activeTab, setActiveTab] = useState('available'); // available, myDeliveries, history
@@ -55,6 +62,12 @@ const DeliveryDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState({});
   const [showNotesModal, setShowNotesModal] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Charger le profil au montage
+  useEffect(() => {
+    getProfile();
+  }, [getProfile]);
 
   // Couleurs pour les graphiques
   const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
@@ -178,9 +191,40 @@ const DeliveryDashboard = () => {
     <DeliveryLayout>
       <div className="max-w-7xl mx-auto">
         {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Livreur</h1>
-          <p className="text-lg text-gray-600">Gérez vos livraisons et suivez vos performances</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Livreur</h1>
+            <p className="text-lg text-gray-600">Gérez vos livraisons et suivez vos performances</p>
+          </div>
+          
+          {/* Avatar et profil */}
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900">
+                {profile?.firstName} {profile?.lastName}
+              </p>
+              <p className="text-xs text-gray-500">Livreur</p>
+            </div>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="relative group"
+            >
+              <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-green-700 transition-colors ring-2 ring-white shadow-lg group-hover:ring-green-400">
+                {profile?.profilePicture ? (
+                  <img 
+                    src={profile.profilePicture} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-6 h-6 text-white" />
+                )}
+              </div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-gray-50">
+                <Settings className="w-3 h-3 text-gray-600 group-hover:text-gray-800" />
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Statistiques */}
@@ -658,6 +702,13 @@ const DeliveryDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* Modal de profil */}
+        <ProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          userRole="livreur"
+        />
       </div>
     </DeliveryLayout>
   );

@@ -33,6 +33,11 @@ const useDeliveryData = () => {
   const [myDeliveriesFilters, setMyDeliveriesFilters] = useState({ status: '' });
   const [historyFilters, setHistoryFilters] = useState({ status: '', dateFrom: '', dateTo: '' });
 
+  // États pour la gestion du profil
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+
   /**
    * Charger les statistiques du livreur
    */
@@ -376,6 +381,75 @@ const useDeliveryData = () => {
     initData();
   }, [loadStats, loadAvailableDeliveries, loadMyDeliveries, loadDeliveryHistory]);
 
+  /**
+   * Charger le profil de l'utilisateur
+   */
+  const getProfile = useCallback(async () => {
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const response = await apiService.getMyProfile();
+      if (response.status === 'success' && response.data?.user) {
+        setProfile(response.data.user);
+      } else {
+        setProfileError('Erreur lors du chargement du profil');
+      }
+    } catch (err) {
+      console.error('Erreur profil:', err);
+      setProfileError(err.response?.data?.message || 'Erreur lors du chargement du profil');
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  /**
+   * Mettre à jour le profil
+   */
+  const updateProfile = useCallback(async (profileData) => {
+    try {
+      const response = await apiService.updateProfile(profileData);
+      if (response.status === 'success') {
+        await getProfile(); // Recharger le profil
+        toast.success('Profil mis à jour avec succès');
+        return response;
+      } else {
+        toast.error(response.message || 'Erreur lors de la mise à jour du profil');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      console.error('Erreur mise à jour profil:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors de la mise à jour du profil');
+      throw err;
+    }
+  }, [getProfile]);
+
+  /**
+   * Changer le mot de passe
+   */
+  const changePassword = useCallback(async (passwordData) => {
+    try {
+      const response = await apiService.changePassword(passwordData);
+      if (response.status === 'success') {
+        toast.success('Mot de passe modifié avec succès');
+        return response;
+      } else {
+        toast.error(response.message || 'Erreur lors du changement de mot de passe');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      console.error('Erreur changement mot de passe:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors du changement de mot de passe');
+      throw err;
+    }
+  }, []);
+
+  /**
+   * Rafraîchir le profil
+   */
+  const refreshProfile = useCallback(async () => {
+    await getProfile();
+  }, [getProfile]);
+
   return {
     // Données
     stats,
@@ -407,8 +481,14 @@ const useDeliveryData = () => {
     changeHistoryPage,
     refreshData,
     
-    // Utilitaires
-    setError
+    // Gestion du profil
+    profile,
+    profileLoading,
+    profileError,
+    updateProfile,
+    changePassword,
+    getProfile,
+    refreshProfile
   };
 };
 

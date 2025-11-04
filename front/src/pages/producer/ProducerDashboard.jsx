@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, ChevronDown, Search, Filter, Plus, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
+import { Upload, ChevronDown, Search, Filter, Plus, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2, User, Settings } from 'lucide-react';
 import ProducerLayout from '../../layouts/ProducerLayout';
 import useProducerData from '../../hooks/useProducerData';
+import ProfileModal from '../../components/ProfileModal';
 
 import {
   BarChart,
@@ -33,7 +34,12 @@ const ProducerDashboard = () => {
     unpublishProduct,
     searchProducts,
     filterProductsByCategory,
-    changeProductsPage
+    changeProductsPage,
+    // Gestion du profil
+    profile,
+    profileLoading,
+    getProfile,
+    refreshProfile
   } = useProducerData();
 
   // Données pour les graphiques (chiffre d'affaires par mois)
@@ -61,6 +67,12 @@ const ProducerDashboard = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Charger le profil au montage
+  useEffect(() => {
+    getProfile();
+  }, [getProfile]);
 
   // Couleurs pour les graphiques
   const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'];
@@ -218,9 +230,40 @@ const ProducerDashboard = () => {
   return (
     <ProducerLayout>
       {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Producteur</h1>
-        <p className="text-lg text-gray-600">Gérez vos produits et suivez vos ventes</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Producteur</h1>
+          <p className="text-lg text-gray-600">Gérez vos produits et suivez vos ventes</p>
+        </div>
+        
+        {/* Avatar et profil */}
+        <div className="flex items-center space-x-4">
+          <div className="text-right">
+            <p className="text-sm font-medium text-gray-900">
+              {profile?.firstName} {profile?.lastName}
+            </p>
+            <p className="text-xs text-gray-500">Producteur</p>
+          </div>
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="relative group"
+          >
+            <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-green-700 transition-colors ring-2 ring-white shadow-lg group-hover:ring-green-400">
+              {profile?.profilePicture ? (
+                <img 
+                  src={profile.profilePicture} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-6 h-6 text-white" />
+              )}
+            </div>
+            <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-gray-50">
+              <Settings className="w-3 h-3 text-gray-600 group-hover:text-gray-800" />
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Statistiques */}
@@ -625,6 +668,13 @@ const ProducerDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de profil */}
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        userRole="producteur"
+      />
     </ProducerLayout>
   );
 };

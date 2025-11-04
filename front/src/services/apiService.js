@@ -1028,6 +1028,88 @@ class ApiService {
   async healthCheck() {
     return await this.request('/health');
   }
+
+  // =====================
+  // GESTION DU PROFIL
+  // =====================
+
+  /**
+   * Obtenir le profil de l'utilisateur connecté
+   */
+  async getMyProfile() {
+    return await this.request('/users/me');
+  }
+
+  /**
+   * Obtenir le profil d'un utilisateur spécifique
+   */
+  async getUserProfile(userId) {
+    return await this.request(`/users/profile/${userId}`);
+  }
+
+  /**
+   * Mettre à jour le profil de l'utilisateur
+   */
+  async updateProfile(profileData) {
+    // Si une photo est incluse, utiliser FormData
+    if (profileData.profilePicture instanceof File || profileData.profilePicture instanceof Blob) {
+      const formData = new FormData();
+      
+      // Ajouter tous les champs
+      Object.keys(profileData).forEach(key => {
+        if (key === 'profilePicture') {
+          formData.append('profilePicture', profileData[key]);
+        } else if (typeof profileData[key] === 'object') {
+          formData.append(key, JSON.stringify(profileData[key]));
+        } else {
+          formData.append(key, profileData[key]);
+        }
+      });
+
+      return await this.request('/users/profile', {
+        method: 'PUT',
+        headers: {
+          // Ne pas définir Content-Type pour multipart/form-data
+        },
+        data: formData
+      });
+    } else {
+      // Utilisation JSON pour les données normales
+      return await this.request('/users/profile', {
+        method: 'PUT',
+        data: profileData
+      });
+    }
+  }
+
+  /**
+   * Changer le mot de passe
+   */
+  async changePassword(passwordData) {
+    return await this.request('/users/change-password', {
+      method: 'PUT',
+      data: passwordData
+    });
+  }
+
+  /**
+   * Mettre à jour les préférences
+   */
+  async updatePreferences(preferences) {
+    return await this.request('/users/preferences', {
+      method: 'PUT',
+      data: preferences
+    });
+  }
+
+  /**
+   * Supprimer son compte
+   */
+  async deleteAccount() {
+    return await this.request('/users/account', {
+      method: 'DELETE'
+    });
+  }
 }
 
 // Instance singleton

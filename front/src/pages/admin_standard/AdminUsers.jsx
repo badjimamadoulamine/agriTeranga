@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { 
   Users, 
   Plus, 
@@ -19,20 +19,35 @@ import {
   Shield,
   ShieldOff,
   Lock,
-  Unlock
+  Unlock,
+  Package,
+  GraduationCap,
+  DollarSign,
+  UserPlus,
+  Download,
+  Upload,
+  TrendingUp
 } from 'lucide-react'
 import { useUsers, useAuth } from '../../hooks/useApi'
+import { useToast } from '../../contexts/ToastContext'
 import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import apiService from '../../services/apiService'
 
 const AdminUsers = () => {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { success, error: showError, loading: showLoading } = useToast()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRole, setSelectedRole] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // États pour les actions rapides
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
+  const [selectedUsers, setSelectedUsers] = useState([])
   
   // Détecter si on est dans un contexte Super Admin
   const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
@@ -173,6 +188,98 @@ const AdminUsers = () => {
         setOperationLoading(null)
       }
     }
+  }
+
+  // ==================== ACTIONS RAPIDES API ====================
+  
+  // Navigation vers autres pages admin
+  const navigateToAdminPage = (page) => {
+    const basePath = isSuperAdminContext ? '/super-admin' : '/admin'
+    navigate(`${basePath}/${page}`)
+  }
+  
+  // Actions bulk pour les utilisateurs sélectionnés
+  const handleBulkStatusToggle = async () => {
+    if (selectedUsers.length === 0) {
+      showError('Veuillez sélectionner au moins un utilisateur')
+      return
+    }
+    
+    setBulkActionLoading(true)
+    const loadingId = showLoading('Traitement en cours...')
+    
+    try {
+      for (const userId of selectedUsers) {
+        const user = users.find(u => u._id === userId)
+        if (user) {
+          const newStatus = !user.isActive
+          await toggleUserStatus(userId)
+        }
+      }
+      
+      setSelectedUsers([])
+      await refetch()
+      success(`${selectedUsers.length} utilisateurs traités avec succès`)
+    } catch (err) {
+      showError('Erreur lors du traitement en masse')
+    } finally {
+      setBulkActionLoading(false)
+    }
+  }
+  
+  // Exporter la liste des utilisateurs
+  const handleExportUsers = async () => {
+    const loadingId = showLoading('Préparation du fichier...')
+    
+    try {
+      const usersToExport = users.map(user => ({
+        'Nom': `${user.firstName} ${user.lastName}`,
+        'Email': user.email,
+        'Téléphone': user.phone || 'N/A',
+        'Rôle': getRoleLabel(user.role),
+        'Statut': user.isActive ? 'Actif' : 'Inactif',
+        'Date de création': new Date(user.createdAt).toLocaleDateString('fr-FR')
+      }))
+      
+      const csv = [
+        Object.keys(usersToExport[0]).join(','),
+        ...usersToExport.map(user => Object.values(user).map(val => `"${val}"`).join(','))
+      ].join('\n')
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `users_export_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      success('Export téléchargé avec succès')
+    } catch (err) {
+      showError('Erreur lors de l\'export')
+    } finally {
+      setBulkActionLoading(false)
+    }
+  }
+  
+  // Sélection/désélection de tous les utilisateurs
+  const toggleSelectAll = () => {
+    if (selectedUsers.length === users.length) {
+      setSelectedUsers([])
+    } else {
+      setSelectedUsers(users.map(user => user._id))
+    }
+  }
+  
+  // Sélection/désélection individuelle
+  const toggleUserSelection = (userId) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    )
   }
 
   const getRoleBadgeColor = (role) => {
@@ -403,6 +510,99 @@ const AdminUsers = () => {
               </div>
             </div>
 
+            {/* Actions rapides */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Actions rapides</h3>
+                {selectedUsers.length > 0 && (
+                  <span className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    {selectedUsers.length} utilisateur{selectedUsers.length > 1 ? 's' : ''} sélectionné{selectedUsers.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button 
+                  onClick={() => navigateToAdminPage('dashboard')}
+                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Users className="w-8 h-8 text-blue-600 mb-2" />
+                  <span className="text-sm font-medium">Dashboard</span>
+                  <span className="text-xs text-gray-500 mt-1">Vue d'ensemble</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigateToAdminPage('products')}
+                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Package className="w-8 h-8 text-green-600 mb-2" />
+                  <span className="text-sm font-medium">Produits</span>
+                  <span className="text-xs text-gray-500 mt-1">Gestion produits</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigateToAdminPage('formations')}
+                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <GraduationCap className="w-8 h-8 text-purple-600 mb-2" />
+                  <span className="text-sm font-medium">Formations</span>
+                  <span className="text-xs text-gray-500 mt-1">Catalogue formations</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigateToAdminPage('sales')}
+                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <DollarSign className="w-8 h-8 text-orange-600 mb-2" />
+                  <span className="text-sm font-medium">Ventes</span>
+                  <span className="text-xs text-gray-500 mt-1">Rapports</span>
+                </button>
+              </div>
+              
+              {/* Actions en masse */}
+              {users.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.length === users.length && users.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        disabled={bulkActionLoading}
+                      />
+                      <span className="text-sm text-gray-600">
+                        {selectedUsers.length > 0 ? 'Désélectionner tout' : 'Sélectionner tout'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleBulkStatusToggle}
+                        disabled={selectedUsers.length === 0 || bulkActionLoading}
+                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        {bulkActionLoading ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3 h-3" />
+                        )}
+                        Basculer statut
+                      </button>
+                      
+                      <button
+                        onClick={handleExportUsers}
+                        disabled={bulkActionLoading || users.length === 0}
+                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        <Download className="w-3 h-3" />
+                        Exporter CSV
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Filters */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -455,6 +655,15 @@ const AdminUsers = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.length === users.length && users.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={bulkActionLoading}
+                        />
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Utilisateur
                       </th>
@@ -478,7 +687,7 @@ const AdminUsers = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                           <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                           <p>Aucun utilisateur trouvé</p>
                         </td>
@@ -486,6 +695,15 @@ const AdminUsers = () => {
                     ) : (
                       users.map((user) => (
                         <tr key={user._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedUsers.includes(user._id)}
+                              onChange={() => toggleUserSelection(user._id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              disabled={bulkActionLoading}
+                            />
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">

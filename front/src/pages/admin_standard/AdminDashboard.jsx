@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { 
   Users, 
   Package, 
@@ -11,19 +11,45 @@ import {
   UserCheck,
   RefreshCw,
   AlertCircle,
-  Loader2
+  Loader2,
+  X,
+  Plus
 } from 'lucide-react'
 import { useDashboard } from '../../hooks/useApi'
+import { useToast } from '../../contexts/ToastContext'
 import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
 import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
 import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import apiService from '../../services/apiService'
 
 const AdminDashboard = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { stats, loading, error, refetch } = useDashboard()
+  const { success, error: showError, loading: showLoading } = useToast()
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  
+  // États pour les modals et actions rapides
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [showFormationModal, setShowFormationModal] = useState(false)
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    category: '',
+    image: null
+  })
+  const [formationForm, setFormationForm] = useState({
+    title: '',
+    description: '',
+    category: '',
+    duration: '',
+    price: ''
+  })
+  const [creatingProduct, setCreatingProduct] = useState(false)
+  const [creatingFormation, setCreatingFormation] = useState(false)
   
   // Détecter si on est dans un contexte Super Admin
   const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
@@ -44,15 +70,6 @@ const AdminDashboard = () => {
     }
   }, [isSuperAdminContext])
 
-  const user = React.useMemo(() => {
-    try {
-      const raw = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  }, [])
-
   const handleRefresh = async () => {
     setRefreshing(true)
     await refetch()
@@ -72,6 +89,112 @@ const AdminDashboard = () => {
   const handleOpenProfile = () => {
     // Logique pour ouvrir le profil
     console.log('Opening profile...')
+  }
+
+  // ==================== ACTIONS RAPIDES API ====================
+  
+  // Gestion utilisateurs - Navigation
+  const handleManageUsers = () => {
+    navigate(isSuperAdminContext ? '/super-admin/admin-users' : '/admin/users')
+  }
+
+  // Ajouter produit - Ouvrir modal
+  const handleAddProduct = () => {
+    setShowProductModal(true)
+  }
+
+  // Nouvelle formation - Ouvrir modal
+  const handleNewFormation = () => {
+    setShowFormationModal(true)
+  }
+
+  // Rapport ventes - Rafraîchir données + redirection
+  const handleSalesReport = async () => {
+    try {
+      await refetch()
+      navigate(isSuperAdminContext ? '/super-admin/sales' : '/admin/sales')
+    } catch (err) {
+      showError('Erreur lors du chargement des données de vente')
+    }
+  }
+
+  // Créer un produit via API
+  const createProduct = async () => {
+    if (!productForm.name || !productForm.price) {
+      showError('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+
+    setCreatingProduct(true)
+    const loadingId = showLoading('Création du produit en cours...')
+
+    try {
+      const productData = {
+        name: productForm.name,
+        description: productForm.description,
+        price: parseFloat(productForm.price),
+        category: productForm.category,
+        status: 'active'
+      }
+
+      await apiService.createProduct(productData)
+      
+      setShowProductModal(false)
+      setProductForm({
+        name: '',
+        description: '',
+        price: '',
+        category: '',
+        image: null
+      })
+      
+      await refetch() // Rafraîchir les statistiques
+      success('Produit créé avec succès !')
+    } catch (err) {
+      showError(err.message || 'Erreur lors de la création du produit')
+    } finally {
+      setCreatingProduct(false)
+    }
+  }
+
+  // Créer une formation via API
+  const createFormation = async () => {
+    if (!formationForm.title || !formationForm.description) {
+      showError('Veuillez remplir tous les champs obligatoires')
+      return
+    }
+
+    setCreatingFormation(true)
+    const loadingId = showLoading('Création de la formation en cours...')
+
+    try {
+      const formationData = {
+        title: formationForm.title,
+        description: formationForm.description,
+        category: formationForm.category,
+        duration: parseInt(formationForm.duration),
+        price: parseFloat(formationForm.price) || 0,
+        isPublished: false
+      }
+
+      await apiService.createFormation(formationData)
+      
+      setShowFormationModal(false)
+      setFormationForm({
+        title: '',
+        description: '',
+        category: '',
+        duration: '',
+        price: ''
+      })
+      
+      await refetch() // Rafraîchir les statistiques
+      success('Formation créée avec succès !')
+    } catch (err) {
+      showError(err.message || 'Erreur lors de la création de la formation')
+    } finally {
+      setCreatingFormation(false)
+    }
   }
 
   // Calcul des statistiques avec valeurs par défaut
@@ -312,26 +435,279 @@ const AdminDashboard = () => {
           Actions rapides
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={handleManageUsers}
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <UserCheck className="w-8 h-8 text-blue-600 mb-2" />
             <span className="text-sm font-medium">Gérer utilisateurs</span>
+            <span className="text-xs text-gray-500 mt-1">
+              {stats.users?.total || 0} utilisateurs
+            </span>
           </button>
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={handleAddProduct}
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <Package className="w-8 h-8 text-green-600 mb-2" />
             <span className="text-sm font-medium">Ajouter produit</span>
+            <span className="text-xs text-gray-500 mt-1">
+              {stats.products?.total || 0} produits
+            </span>
           </button>
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={handleNewFormation}
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <GraduationCap className="w-8 h-8 text-purple-600 mb-2" />
             <span className="text-sm font-medium">Nouvelle formation</span>
+            <span className="text-xs text-gray-500 mt-1">
+              Actions rapides API
+            </span>
           </button>
-          <button className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+          <button 
+            onClick={handleSalesReport}
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+          >
             <DollarSign className="w-8 h-8 text-orange-600 mb-2" />
             <span className="text-sm font-medium">Rapport ventes</span>
+            <span className="text-xs text-gray-500 mt-1">
+              {((stats.revenue?.total || 0) / 1000000).toFixed(1)}M€ CA
+            </span>
           </button>
         </div>
       </div>
         </main>
       </div>
+      
+      {/* Modal de création de produit */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">Créer un nouveau produit</h2>
+              <button
+                onClick={() => setShowProductModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={creatingProduct}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nom du produit *
+                </label>
+                <input
+                  type="text"
+                  value={productForm.name}
+                  onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ex: Tomate bio"
+                  disabled={creatingProduct}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={productForm.description}
+                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Description du produit..."
+                  disabled={creatingProduct}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prix (€) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={productForm.price}
+                    onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="0.00"
+                    disabled={creatingProduct}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Catégorie
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.category}
+                    onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ex: Légumes"
+                    disabled={creatingProduct}
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 p-6 border-t bg-gray-50">
+              <button
+                onClick={() => setShowProductModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                disabled={creatingProduct}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={createProduct}
+                disabled={creatingProduct || !productForm.name || !productForm.price}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {creatingProduct ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Création...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Créer
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Modal de création de formation */}
+      {showFormationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold text-gray-900">Créer une nouvelle formation</h2>
+              <button
+                onClick={() => setShowFormationModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={creatingFormation}
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Titre de la formation *
+                </label>
+                <input
+                  type="text"
+                  value={formationForm.title}
+                  onChange={(e) => setFormationForm({ ...formationForm, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="Ex: Techniques de culture bio"
+                  disabled={creatingFormation}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description *
+                </label>
+                <textarea
+                  value={formationForm.description}
+                  onChange={(e) => setFormationForm({ ...formationForm, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  rows={3}
+                  placeholder="Description de la formation..."
+                  disabled={creatingFormation}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Catégorie
+                  </label>
+                  <input
+                    type="text"
+                    value={formationForm.category}
+                    onChange={(e) => setFormationForm({ ...formationForm, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Ex: Agriculture"
+                    disabled={creatingFormation}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Durée (heures)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formationForm.duration}
+                    onChange={(e) => setFormationForm({ ...formationForm, duration: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="8"
+                    disabled={creatingFormation}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Prix (€)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formationForm.price}
+                  onChange={(e) => setFormationForm({ ...formationForm, price: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="0.00"
+                  disabled={creatingFormation}
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 p-6 border-t bg-gray-50">
+              <button
+                onClick={() => setShowFormationModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                disabled={creatingFormation}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={createFormation}
+                disabled={creatingFormation || !formationForm.title || !formationForm.description}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {creatingFormation ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Création...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    Créer
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

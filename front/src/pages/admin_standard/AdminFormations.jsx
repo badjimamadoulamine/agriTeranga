@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { 
   GraduationCap, 
   Plus, 
@@ -22,8 +23,11 @@ import {
 import { useFormations } from '../../hooks/useApi'
 import AdminSidebar from '../../components/admin/AdminSidebar'
 import AdminHeader from '../../components/admin/AdminHeader'
+import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
+import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
 
 const AdminFormations = () => {
+  const location = useLocation()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -45,15 +49,24 @@ const AdminFormations = () => {
     startDate: ''
   })
 
-  // Récupérer l'admin connecté
+  // Détecter si on est dans un contexte Super Admin
+  const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
+  
+  // Déterminer quel stockage utiliser selon le contexte
   const user = React.useMemo(() => {
     try {
-      const raw = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
-      return raw ? JSON.parse(raw) : null
+      let storageKey
+      if (isSuperAdminContext) {
+        // Essayer d'abord le stockage super admin, puis fallback sur admin
+        storageKey = localStorage.getItem('superAdminUser') || localStorage.getItem('adminDashboardUser')
+      } else {
+        storageKey = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
+      }
+      return storageKey ? JSON.parse(storageKey) : null
     } catch {
       return null
     }
-  }, [])
+  }, [isSuperAdminContext])
 
   // Hook pour récupérer les formations
   const { 
@@ -215,14 +228,20 @@ const AdminFormations = () => {
   // categories are now provided by the useFormations hook (fetched from backend)
 
   if (loading) {
+    const SidebarComponent = isSuperAdminContext ? SuperAdminSidebar : AdminSidebar
+    const HeaderComponent = isSuperAdminContext ? SuperAdminHeader : AdminHeader
+    
     return (
       <div className="flex h-screen bg-[#F8FAF8]">
-        <AdminSidebar user={user} />
+        <SidebarComponent user={user} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <AdminHeader
+          <HeaderComponent
             user={user}
-            onOpenProfile={() => (window.location.href = '/admin/settings')}
-            onLogout={() => { localStorage.clear(); window.location.href = '/login' }}
+            onOpenProfile={() => (window.location.href = isSuperAdminContext ? '/super-admin/settings' : '/admin/settings')}
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = isSuperAdminContext ? '/login' : '/admin/login' 
+            }}
           />
           <main className="flex-1 overflow-y-auto p-6">
             <div className="flex items-center justify-center h-64">
@@ -239,13 +258,31 @@ const AdminFormations = () => {
 
   return (
     <div className="flex h-screen bg-[#F8FAF8]">
-      <AdminSidebar user={user} />
+      {isSuperAdminContext ? (
+        <SuperAdminSidebar user={user} />
+      ) : (
+        <AdminSidebar user={user} />
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <AdminHeader
-          user={user}
-          onOpenProfile={() => (window.location.href = '/admin/settings')}
-          onLogout={() => { localStorage.clear(); window.location.href = '/login' }}
-        />
+        {isSuperAdminContext ? (
+          <SuperAdminHeader
+            user={user}
+            onOpenProfile={() => (window.location.href = '/super-admin/settings')}
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = '/login' 
+            }}
+          />
+        ) : (
+          <AdminHeader
+            user={user}
+            onOpenProfile={() => (window.location.href = '/admin/settings')}
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = '/admin/login' 
+            }}
+          />
+        )}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
       {/* Header */}

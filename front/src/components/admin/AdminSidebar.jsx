@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   
 } from 'lucide-react'
+import logo from '../../assets/logo.png'
 
 const AdminSidebar = ({ user, onClose }) => {
 
@@ -100,13 +101,7 @@ const AdminSidebar = ({ user, onClose }) => {
         <div className="flex items-center justify-between">
           {!isCollapsed && (
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">AT</span>
-              </div>
-              <div>
-                <h1 className="font-bold text-gray-800">AgriTeranga</h1>
-                <p className="text-xs text-gray-500">Administration</p>
-              </div>
+              <img src={logo} alt="AgriTeranga" className="h-10 w-auto object-contain" />
             </div>
           )}
           <div className="flex items-center space-x-1">
@@ -138,40 +133,6 @@ const AdminSidebar = ({ user, onClose }) => {
           </div>
         </div>
       </div>
-
-      {/* User Info */}
-      {!isCollapsed && (
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <span className="text-green-600 font-semibold">
-                {user?.name?.charAt(0) || 'A'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 truncate">
-                {user?.name || 'Admin'}
-              </p>
-              <div className="flex items-center space-x-2">
-                {isSuperAdmin && (
-                  <>
-                    <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-medium">
-                      SUPER ADMIN
-                    </span>
-                    <ShieldCheck className="w-4 h-4 text-red-500" />
-                  </>
-                )}
-                {!isSuperAdmin && (
-                  <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                    ADMIN STANDARD
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation Menu */}
       <nav className="flex-1 overflow-y-auto p-4">
         <div className="space-y-2">

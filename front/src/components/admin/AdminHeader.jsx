@@ -31,9 +31,7 @@ const AdminHeader = ({ user, onOpenProfile, onLogout, onToggleSidebar }) => {
           )}
           
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-800">
-              {isSuperAdmin ? 'Super Administration' : 'Administration'}
-            </h2>
+           
             <p className="text-xs sm:text-sm text-gray-500 capitalize hidden sm:block">
               {currentTime}
             </p>

@@ -37,6 +37,22 @@ exports.getAllFormations = async (req, res) => {
   }
 };
 
+// Obtenir la liste des catégories de formations (distinct)
+exports.getCategories = async (req, res) => {
+  try {
+    const categories = await Formation.distinct('category', { category: { $exists: true, $ne: '' } });
+    res.status(200).json({
+      status: 'success',
+      data: { categories }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
 // Obtenir une formation
 exports.getFormation = async (req, res) => {
   try {

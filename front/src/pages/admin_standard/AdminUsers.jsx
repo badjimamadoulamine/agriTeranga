@@ -509,99 +509,6 @@ const AdminUsers = () => {
               </div>
             </div>
 
-            {/* Actions rapides */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Actions rapides</h3>
-                {selectedUsers.length > 0 && (
-                  <span className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                    {selectedUsers.length} utilisateur{selectedUsers.length > 1 ? 's' : ''} sélectionné{selectedUsers.length > 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button 
-                  onClick={() => navigateToAdminPage('dashboard')}
-                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Users className="w-8 h-8 text-blue-600 mb-2" />
-                  <span className="text-sm font-medium">Dashboard</span>
-                  <span className="text-xs text-gray-500 mt-1">Vue d'ensemble</span>
-                </button>
-                
-                <button 
-                  onClick={() => navigateToAdminPage('products')}
-                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Package className="w-8 h-8 text-green-600 mb-2" />
-                  <span className="text-sm font-medium">Produits</span>
-                  <span className="text-xs text-gray-500 mt-1">Gestion produits</span>
-                </button>
-                
-                <button 
-                  onClick={() => navigateToAdminPage('formations')}
-                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <GraduationCap className="w-8 h-8 text-purple-600 mb-2" />
-                  <span className="text-sm font-medium">Formations</span>
-                  <span className="text-xs text-gray-500 mt-1">Catalogue formations</span>
-                </button>
-                
-                <button 
-                  onClick={() => navigateToAdminPage('sales')}
-                  className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <DollarSign className="w-8 h-8 text-orange-600 mb-2" />
-                  <span className="text-sm font-medium">Ventes</span>
-                  <span className="text-xs text-gray-500 mt-1">Rapports</span>
-                </button>
-              </div>
-              
-              {/* Actions en masse */}
-              {users.length > 0 && (
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <div className="flex flex-col sm:flex-row gap-4 items-center">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedUsers.length === users.length && users.length > 0}
-                        onChange={toggleSelectAll}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        disabled={bulkActionLoading}
-                      />
-                      <span className="text-sm text-gray-600">
-                        {selectedUsers.length > 0 ? 'Désélectionner tout' : 'Sélectionner tout'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleBulkStatusToggle}
-                        disabled={selectedUsers.length === 0 || bulkActionLoading}
-                        className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                      >
-                        {bulkActionLoading ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-3 h-3" />
-                        )}
-                        Basculer statut
-                      </button>
-                      
-                      <button
-                        onClick={handleExportUsers}
-                        disabled={bulkActionLoading || users.length === 0}
-                        className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                      >
-                        <Download className="w-3 h-3" />
-                        Exporter CSV
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Filters */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -625,9 +532,9 @@ const AdminUsers = () => {
                 >
                   <option value="all">Tous les rôles</option>
                   <option value="admin">Admin</option>
-                  <option value="consumer">Consommateur</option>
-                  <option value="producer">Producteur</option>
-                  <option value="deliverer">Livreur</option>
+                  <option value="consommateur">Consommateur</option>
+                  <option value="producteur">Producteur</option>
+                  <option value="livreur">Livreur</option>
                 </select>
 
                 {/* Items per page */}
@@ -746,59 +653,57 @@ const AdminUsers = () => {
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center space-x-2">
-                              <button 
-                                onClick={() => openRoleModal(user)}
-                                className={`${canModifyAdmin(user) ? 'text-blue-600 hover:text-blue-900' : 'text-gray-400'} ${!canModifyAdmin(user) ? 'opacity-50 pointer-events-none' : ''}`}
-                                title={canModifyAdmin(user) ? 'Modifier le rôle' : 'Action réservée au super-admin'}
-                                aria-disabled={!canModifyAdmin(user)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button 
-                                onClick={() => canModifyAdmin(user) && handleStatusToggle(user._id, user.isActive)}
-                                disabled={operationLoading === user._id || !canModifyAdmin(user)}
-                                className={`${user.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'} ${!canModifyAdmin(user) ? 'text-gray-400 opacity-50 pointer-events-none' : ''}`}
-                                title={!canModifyAdmin(user) ? 'Action réservée au super-admin' : (user.isActive ? 'Désactiver' : 'Activer')}
-                                aria-disabled={!canModifyAdmin(user)}
-                              >
-                                {operationLoading === user._id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : user.isActive ? (
-                                  <UserX className="w-4 h-4" />
-                                ) : (
-                                  <UserCheck className="w-4 h-4" />
-                                )}
-                              </button>
-                              <button 
-                                onClick={() => canModifyAdmin(user) && (user.isBlocked ? handleUnblockUser(user._id, user.firstName || user.email) : handleBlockUser(user._id, user.firstName || user.email))}
-                                disabled={operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}` || !canModifyAdmin(user)}
-                                className={`${user.isBlocked ? 'text-green-600 hover:text-green-900' : 'text-orange-600 hover:text-orange-900'} ${!canModifyAdmin(user) ? 'text-gray-400 opacity-50 pointer-events-none' : ''}`}
-                                title={!canModifyAdmin(user) ? 'Action réservée au super-admin' : (user.isBlocked ? 'Débloquer l\'utilisateur' : 'Bloquer l\'utilisateur')}
-                                aria-disabled={!canModifyAdmin(user)}
-                              >
-                                {operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}` ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : user.isBlocked ? (
-                                  <Unlock className="w-4 h-4" />
-                                ) : (
-                                  <Lock className="w-4 h-4" />
-                                )}
-                              </button>
-                              <button 
-                                onClick={() => canModifyAdmin(user) && handleDeleteUser(user._id, user.firstName || user.email)}
-                                disabled={operationLoading === user._id || !canModifyAdmin(user)}
-                                className={`text-red-600 hover:text-red-900 ${!canModifyAdmin(user) ? 'text-gray-400 opacity-50 pointer-events-none' : ''}`}
-                                title={!canModifyAdmin(user) ? 'Action réservée au super-admin' : 'Supprimer l\'utilisateur'}
-                                aria-disabled={!canModifyAdmin(user)}
-                              >
-                                {operationLoading === user._id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-4 h-4" />
-                                )}
-                              </button>
-                            </div>
+                            {user.role !== 'admin' && canModifyAdmin(user) && (
+                              <div className="flex items-center space-x-2">
+                                <button 
+                                  onClick={() => openRoleModal(user)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                  title={'Modifier le rôle'}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleStatusToggle(user._id, user.isActive)}
+                                  disabled={operationLoading === user._id}
+                                  className={`${user.isActive ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}`}
+                                  title={(user.isActive ? 'Désactiver' : 'Activer')}
+                                >
+                                  {operationLoading === user._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : user.isActive ? (
+                                    <UserX className="w-4 h-4" />
+                                  ) : (
+                                    <UserCheck className="w-4 h-4" />
+                                  )}
+                                </button>
+                                <button 
+                                  onClick={() => (user.isBlocked ? handleUnblockUser(user._id, user.firstName || user.email) : handleBlockUser(user._id, user.firstName || user.email))}
+                                  disabled={operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}`}
+                                  className={`${user.isBlocked ? 'text-green-600 hover:text-green-900' : 'text-orange-600 hover:text-orange-900'}`}
+                                  title={(user.isBlocked ? 'Débloquer l\'utilisateur' : 'Bloquer l\'utilisateur')}
+                                >
+                                  {operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}` ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : user.isBlocked ? (
+                                    <Unlock className="w-4 h-4" />
+                                  ) : (
+                                    <Lock className="w-4 h-4" />
+                                  )}
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteUser(user._id, user.firstName || user.email)}
+                                  disabled={operationLoading === user._id}
+                                  className="text-red-600 hover:text-red-900"
+                                  title={'Supprimer l\'utilisateur'}
+                                >
+                                  {operationLoading === user._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -842,36 +747,38 @@ const AdminUsers = () => {
                           <div className="flex items-center"><Mail className="w-4 h-4 mr-1" />{user.email}</div>
                           {user.phone && (<div className="flex items-center"><Phone className="w-4 h-4 mr-1" />{user.phone}</div>)}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <button onClick={() => openRoleModal(user)} className={`${canModifyAdmin(user) ? 'text-blue-600' : 'text-gray-400 opacity-50 pointer-events-none'}`}> <Edit className="w-4 h-4" /> </button>
-                          <button onClick={() => canModifyAdmin(user) && handleStatusToggle(user._id, user.isActive)} className={`${user.isActive ? 'text-red-600' : 'text-green-600'} ${!canModifyAdmin(user) ? 'text-gray-400 opacity-50 pointer-events-none' : ''}`}>
-                            {operationLoading === user._id ? (<Loader2 className="w-4 h-4 animate-spin" />) : (user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />)}
-                          </button>
-                          <button 
-                            onClick={() => canModifyAdmin(user) && (user.isBlocked ? handleUnblockUser(user._id, user.firstName || user.email) : handleBlockUser(user._id, user.firstName || user.email))}
-                            disabled={operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}` || !canModifyAdmin(user)}
-                            className={`${user.isBlocked ? 'text-green-600' : 'text-orange-600'} ${!canModifyAdmin(user) ? 'text-gray-400 opacity-50 pointer-events-none' : ''}`}
-                          >
-                            {operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}` ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : user.isBlocked ? (
-                              <Unlock className="w-4 h-4" />
-                            ) : (
-                              <Lock className="w-4 h-4" />
-                            )}
-                          </button>
-                          <button 
-                            onClick={() => canModifyAdmin(user) && handleDeleteUser(user._id, user.firstName || user.email)}
-                            disabled={operationLoading === user._id || !canModifyAdmin(user)}
-                            className={`text-red-600 ${!canModifyAdmin(user) ? 'text-gray-400 opacity-50 pointer-events-none' : ''}`}
-                          >
-                            {operationLoading === user._id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
+                        {user.role !== 'admin' && canModifyAdmin(user) && (
+                          <div className="flex items-center space-x-2">
+                            <button onClick={() => openRoleModal(user)} className="text-blue-600"> <Edit className="w-4 h-4" /> </button>
+                            <button onClick={() => handleStatusToggle(user._id, user.isActive)} className={`${user.isActive ? 'text-red-600' : 'text-green-600'}`}>
+                              {operationLoading === user._id ? (<Loader2 className="w-4 h-4 animate-spin" />) : (user.isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />)}
+                            </button>
+                            <button 
+                              onClick={() => (user.isBlocked ? handleUnblockUser(user._id, user.firstName || user.email) : handleBlockUser(user._id, user.firstName || user.email))}
+                              disabled={operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}`}
+                              className={`${user.isBlocked ? 'text-green-600' : 'text-orange-600'}`}
+                            >
+                              {operationLoading === `block_${user._id}` || operationLoading === `unblock_${user._id}` ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : user.isBlocked ? (
+                                <Unlock className="w-4 h-4" />
+                              ) : (
+                                <Lock className="w-4 h-4" />
+                              )}
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteUser(user._id, user.firstName || user.email)}
+                              disabled={operationLoading === user._id}
+                              className="text-red-600"
+                            >
+                              {operationLoading === user._id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))

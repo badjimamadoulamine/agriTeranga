@@ -354,17 +354,33 @@ class ApiService {
 
   /**
    * Liste des utilisateurs avec filtres
+   * Compatible avec:
+   * - getUsers(page, limit, search, role)
+   * - getUsers({ page, limit, search, role })
    */
   async getUsers(page = 1, limit = 50, search = '', role = '') {
+    let p = { page, limit, search, role }
+
+    // Support forme objet: getUsers({ page, limit, search, role })
+    if (typeof page === 'object' && page !== null) {
+      const obj = page
+      p = {
+        page: obj.page ?? 1,
+        limit: obj.limit ?? 50,
+        search: obj.search ?? '',
+        role: obj.role ?? ''
+      }
+    }
+
     const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
+      page: String(p.page),
+      limit: String(p.limit)
+    })
 
-    if (search) params.append('search', search);
-    if (role) params.append('role', role);
+    if (p.search) params.append('search', String(p.search))
+    if (p.role) params.append('role', String(p.role))
 
-    return await this.request(`/admin/users?${params.toString()}`);
+    return await this.request(`/admin/users?${params.toString()}`)
   }
 
   /**
@@ -1109,6 +1125,13 @@ class ApiService {
     return await this.request('/users/account', {
       method: 'DELETE'
     });
+  }
+
+  /**
+   * Détails d'une commande par ID (admin/général)
+   */
+  async getOrderDetails(orderId) {
+    return await this.request(`/orders/${orderId}`);
   }
 }
 

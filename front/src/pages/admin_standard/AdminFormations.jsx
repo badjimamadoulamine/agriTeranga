@@ -53,7 +53,10 @@ const AdminFormations = () => {
     maxParticipants: '',
     instructor: '',
     startDate: '',
-    isPublished: true
+    isPublished: true,
+    thumbnail: null,
+    document: null,
+    video: null
   })
 
   // Détecter si on est dans un contexte Super Admin
@@ -122,13 +125,23 @@ const AdminFormations = () => {
   const handleCreateFormation = async () => {
     try {
       setOperationLoading('create')
-      await createFormation({
-        ...newFormation,
-        maxParticipants: parseInt(newFormation.maxParticipants),
-        price: parseFloat(newFormation.price),
-        duration: parseInt(newFormation.duration),
-        isPublished: newFormation.isPublished
-      })
+
+      const form = new FormData()
+      form.append('title', newFormation.title || '')
+      form.append('description', newFormation.description || '')
+      form.append('category', newFormation.category || '')
+      if (newFormation.duration !== '') form.append('duration', String(parseInt(newFormation.duration)))
+      if (newFormation.price !== '') form.append('price', String(parseFloat(newFormation.price)))
+      if (newFormation.maxParticipants !== '') form.append('maxParticipants', String(parseInt(newFormation.maxParticipants)))
+      form.append('instructor', newFormation.instructor || '')
+      form.append('startDate', newFormation.startDate || '')
+      form.append('isPublished', String(Boolean(newFormation.isPublished)))
+      if (newFormation.thumbnail instanceof File) form.append('thumbnail', newFormation.thumbnail)
+      if (newFormation.document instanceof File) form.append('document', newFormation.document)
+      if (newFormation.video instanceof File) form.append('video', newFormation.video)
+
+      await createFormation(form)
+
       setShowCreateModal(false)
       setNewFormation({
         title: '',
@@ -139,7 +152,10 @@ const AdminFormations = () => {
         maxParticipants: '',
         instructor: '',
         startDate: '',
-        isPublished: true
+        isPublished: true,
+        thumbnail: null,
+        document: null,
+        video: null
       })
     } catch (error) {
       alert(`Erreur lors de la création: ${error.message}`)
@@ -182,10 +198,11 @@ const AdminFormations = () => {
   }
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
+    const formatted = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(price || 0)
+    return `${formatted} FCFA`
   }
 
   const formatDate = (dateString) => {
@@ -652,12 +669,23 @@ const AdminFormations = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                  <input
-                    type="text"
+                  <select
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={newFormation.category}
                     onChange={(e) => setNewFormation({...newFormation, category: e.target.value})}
-                  />
+                    disabled={categoriesLoading}
+                  >
+                    <option value="">Sélectionner une catégorie</option>
+                    {categoriesLoading ? (
+                      <option value="" disabled>Chargement...</option>
+                    ) : categoriesError ? (
+                      <option value="" disabled>Erreur de chargement</option>
+                    ) : (
+                      Array.isArray(categories) && categories.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))
+                    )}
+                  </select>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -687,10 +715,11 @@ const AdminFormations = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix (€)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix (FCFA)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="1"
+                    min="0"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     value={newFormation.price}
                     onChange={(e) => setNewFormation({...newFormation, price: e.target.value})}
@@ -714,6 +743,36 @@ const AdminFormations = () => {
                     onChange={(e) => setNewFormation({...newFormation, startDate: e.target.value})}
                   />
                 </div>
+
+                {/* Uploads */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image (thumbnail)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setNewFormation({ ...newFormation, thumbnail: e.target.files?.[0] || null })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Document (PDF)</label>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setNewFormation({ ...newFormation, document: e.target.files?.[0] || null })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vidéo (MP4)</label>
+                  <input
+                    type="file"
+                    accept="video/mp4,video/*"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => setNewFormation({ ...newFormation, video: e.target.files?.[0] || null })}
+                  />
+                </div>
+
                 <div className="md:col-span-2">
                   <div className="flex items-center">
                     <input
@@ -744,7 +803,11 @@ const AdminFormations = () => {
                       price: '',
                       maxParticipants: '',
                       instructor: '',
-                      startDate: ''
+                      startDate: '',
+                      isPublished: true,
+                      thumbnail: null,
+                      document: null,
+                      video: null
                     })
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"

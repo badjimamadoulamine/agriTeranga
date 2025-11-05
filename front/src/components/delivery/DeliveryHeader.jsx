@@ -26,18 +26,23 @@
       setAvatarVersion(Date.now());
     } catch {}
   };
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getProfilePictureUrl } from '../../utils/imageUtils';
 import ProfileModal from '../ProfileModal';
 import apiService from '../../services/apiService';
+import { io } from 'socket.io-client';
 
 const DeliveryHeader = ({ onLogout }) => {
   const { user, logout } = useAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [avatarVersion, setAvatarVersion] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const socketRef = useRef(null);
 
   const handleLogout = () => {
     if (onLogout) {
@@ -47,12 +52,100 @@ const DeliveryHeader = ({ onLogout }) => {
     }
   };
 
+  // Socket.IO client
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const token =
+        localStorage.getItem('deliveryDashboardToken') ||
+        localStorage.getItem('token');
+      const base = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1')
+        .replace(/\/?api\/v1\/?$/, '');
+      const socket = io(base, {
+        transports: ['websocket'],
+        auth: { token }
+      });
+      socketRef.current = socket;
+
+      const pushNotif = (n) => {
+        setNotifications((prev) => [
+          { id: Date.now() + Math.random(), ...n, createdAt: new Date().toISOString(), read: false },
+          ...prev
+        ].slice(0, 50));
+        setUnread((u) => u + 1);
+      };
+
+      socket.on('notifications:hello', () => {});
+      socket.on('delivery:new-assignment', (payload) => {
+        pushNotif({
+          type: 'new-assignment',
+          title: 'Nouvelle commande assignée',
+          message: `Commande ${payload?.orderNumber || ''} vous a été assignée.`
+        });
+      });
+      socket.on('delivery:cancelled', (payload) => {
+        pushNotif({
+          type: 'cancelled',
+          title: 'Commande annulée',
+          message: `Commande ${payload?.orderNumber || ''} a été annulée.`
+        });
+      });
+      socket.on('order:status-changed', (payload) => {
+        pushNotif({
+          type: 'status',
+          title: 'Statut mis à jour',
+          message: `Commande ${payload?.orderNumber || ''}: ${payload?.status || ''}`
+        });
+      });
+
+      return () => {
+        try { socket.disconnect(); } catch {}
+      };
+    } catch {}
+  }, [user]);
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map(n => ({ ...n, read: true })));
+    setUnread(0);
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-end gap-4">
-        <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-          <Bell className="w-5 h-5" />
-        </button>
+        <div className="relative">
+          <button
+            className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            onClick={() => setNotifOpen((v) => !v)}
+          >
+            <Bell className="w-5 h-5" />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">
+                {unread}
+              </span>
+            )}
+          </button>
+          {notifOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+              <div className="flex items-center justify-between px-3 py-2 border-b">
+                <span className="text-sm font-semibold text-gray-700">Notifications</span>
+                <button onClick={markAllAsRead} className="text-xs text-green-600 hover:underline">Tout marquer comme lu</button>
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-3 py-4 text-sm text-gray-500">Aucune notification</div>
+                ) : (
+                  notifications.map((n) => (
+                    <div key={n.id} className={`px-3 py-2 text-sm ${n.read ? 'bg-white' : 'bg-green-50'}`}>
+                      <div className="font-medium text-gray-800">{n.title}</div>
+                      <div className="text-gray-600 text-xs">{n.message}</div>
+                      <div className="text-gray-400 text-[10px] mt-1">{new Date(n.createdAt).toLocaleString()}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {user && (
           <div className="relative group">

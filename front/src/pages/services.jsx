@@ -156,9 +156,13 @@ const Services = ({ onOpenRegister, onOpenLogin }) => {
                     </li>
                   ))}
                 </ul>
-                <button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors mt-auto">
+                <Link
+                  to={`/contact?service=${encodeURIComponent(service.title)}`}
+                  className="w-full inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors mt-auto"
+                  aria-label={`En savoir plus sur ${service.title}`}
+                >
                   En savoir plus
-                </button>
+                </Link>
               </div>
             ))}
           </div>

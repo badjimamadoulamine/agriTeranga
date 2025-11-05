@@ -73,6 +73,16 @@ const Vendeurs = ({ onOpenRegister, onOpenLogin }) => {
     }
   ]
 
+  const phoneHref = (raw) => {
+    const str = String(raw || '').trim();
+    if (str.startsWith('+')) return str;
+    const digits = str.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length === 9) return `+221${digits}`; // Sénégal sans indicatif
+    if (digits.startsWith('221') && digits.length === 12) return `+${digits}`;
+    return `+${digits}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
         <Header onRegisterClick={onOpenRegister} onLoginClick={onOpenLogin} />
@@ -188,10 +198,14 @@ const Vendeurs = ({ onOpenRegister, onOpenLogin }) => {
                   </div>
                 </div>
 
-                {/* Bouton de contact */}
-                <button className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200">
+                {/* Bouton de contact (ouvrir le composeur téléphonique) */}
+                <a
+                  href={`tel:${phoneHref(vendeur.telephone)}`}
+                  className="w-full mt-4 inline-flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+                  aria-label={`Appeler ${vendeur.nom}`}
+                >
                   Contacter le vendeur
-                </button>
+                </a>
               </div>
             </div>
           ))}

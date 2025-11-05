@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0, deliveryInfo = null }) => {
   const [selected, setSelected] = useState(null);
   const [showWavePayment, setShowWavePayment] = useState(false);
+  const [showFarmPickupThanks, setShowFarmPickupThanks] = useState(false);
   const navigate = useNavigate();
   const { cartItems, getTotalPrice } = useCart();
   const productsTotal = getTotalPrice();
@@ -118,7 +119,12 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0, deliveryInfo 
           return;
         }
       } catch {}
-      // Fermer le modal et rediriger seulement si la création a réussi
+      // Si retrait à la ferme, afficher un modal de remerciement et ne pas rediriger
+      if (deliveryInfo && deliveryInfo.method === 'farm-pickup') {
+        setShowFarmPickupThanks(true);
+        return;
+      }
+      // Sinon, fermer et rediriger
       onClose();
       navigate('/livraison');
     }
@@ -131,8 +137,7 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0, deliveryInfo 
 
   const handleWavePaymentSuccess = async () => {
     setShowWavePayment(false);
-    onClose();
-    // Rediriger vers la page de confirmation ou livraison
+    // Ne pas fermer ici en cas de retrait à la ferme: afficher le modal de remerciement
     try {
       const items = await buildItemsFromServerCart();
       // Validation assouplie
@@ -165,11 +170,49 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0, deliveryInfo 
         return;
       }
     } catch {}
+    if (deliveryInfo && deliveryInfo.method === 'farm-pickup') {
+      setShowFarmPickupThanks(true);
+      return;
+    }
+    onClose();
     navigate('/livraison');
+  };
+
+  const closeFarmPickupThanks = () => {
+    setShowFarmPickupThanks(false);
+    onClose();
   };
 
   return (
     <>
+      {showFarmPickupThanks && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl w-[28rem] shadow-2xl p-6 text-center relative">
+            <button
+              onClick={closeFarmPickupThanks}
+              className="absolute top-2 right-3 text-gray-400 hover:text-gray-600 text-2xl"
+              aria-label="Fermer"
+            >
+              ×
+            </button>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Merci pour votre commande !</h3>
+            <p className="text-gray-600 mb-6">
+              Vous pourrez vous rendre à la ferme choisie pour récupérer votre commande.
+            </p>
+            <button
+              onClick={closeFarmPickupThanks}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
       {/* Modal de sélection du moyen de paiement */}
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-xl p-6 w-96 shadow-lg relative">

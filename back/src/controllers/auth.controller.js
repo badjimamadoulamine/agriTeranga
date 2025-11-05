@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const RevokedToken = require('../models/RevokedToken');
 const emailService = require('../services/email.service');
@@ -9,6 +10,61 @@ const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   });
+};
+
+// Google Identity Services credential login
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) {
+      return res.status(400).json({ status: 'error', message: 'Credential manquant' });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ status: 'error', message: 'GOOGLE_CLIENT_ID non configuré' });
+    }
+
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({ idToken: credential, audience: clientId });
+    const payload = ticket.getPayload();
+
+    const email = String(payload.email || '').toLowerCase();
+    const firstName = payload.given_name || '';
+    const lastName = payload.family_name || '';
+    const picture = payload.picture || '';
+
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email Google introuvable' });
+    }
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      // Créer un nouveau user minimal côté app (consommateur par défaut)
+      user = await User.create({
+        firstName,
+        lastName,
+        email,
+        password: crypto.randomBytes(16).toString('hex'), // placeholder, non utilisé
+        role: 'consommateur',
+        profilePicture: picture,
+        isVerified: true
+      });
+      try { await emailService.sendWelcomeEmail(user); } catch (_) {}
+    }
+
+    if (!user.isActive || user.isDeleted) {
+      return res.status(401).json({ status: 'error', message: "Compte inactif ou supprimé" });
+    }
+
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
+
+    const token = signToken(user._id);
+    return res.status(200).json({ status: 'success', token, data: { user } });
+  } catch (error) {
+    return res.status(400).json({ status: 'error', message: error.message });
+  }
 };
 
 // Inscription
@@ -249,13 +305,31 @@ exports.forgotPassword = async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    const resetURL = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${resetToken}`;
+    // Construire l'URL frontend pour la réinitialisation
+    const frontendUrl = process.env.FRONTEND_URL || '';
+    const resetURL = frontendUrl
+      ? `${frontendUrl.replace(/\/$/, '')}/reset-password/${resetToken}`
+      : `${req.protocol}://${req.get('host')}/reset-password/${resetToken}`;
+
+    // Envoyer l'email de réinitialisation
+    try {
+      await emailService.sendPasswordResetEmail(user, resetToken);
+    } catch (mailErr) {
+      // En cas d'échec d'envoi, nettoyer les champs et informer l'API
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return res.status(500).json({
+        status: 'error',
+        message: "Impossible d'envoyer l'email de réinitialisation. Réessayez plus tard."
+      });
+    }
 
     res.status(200).json({
       status: 'success',
-      message: 'Token de réinitialisation envoyé par email',
-      resetToken, // À retirer en production
-      resetURL // À retirer en production
+      message: 'Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.',
+      // Pour le debug local uniquement, on peut retourner resetURL si nécessaire
+      ...(process.env.NODE_ENV === 'development' && { resetURL })
     });
   } catch (error) {
     res.status(500).json({

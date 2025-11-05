@@ -1,7 +1,8 @@
 import DeliveryLayout from '../../layouts/DeliveryLayout';
 import { Search, Calendar, Filter, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useDeliveryData from '../../hooks/useDeliveryData';
+import apiService from '../../services/apiService';
 
 const DeliveryHistory = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,6 +12,7 @@ const DeliveryHistory = () => {
 
   const {
     deliveryHistory,
+    myDeliveries,
     loading,
     error,
     historyPagination,
@@ -18,10 +20,57 @@ const DeliveryHistory = () => {
     changeHistoryPage
   } = useDeliveryData();
 
+  // État local pour garantir l'affichage même si le hook ne renvoie rien
+  const [rows, setRows] = useState([]);
+  const [loadingLocal, setLoadingLocal] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async (page = 1) => {
+      try {
+        setLoadingLocal(true);
+        const resp = await apiService.getDeliveryHistory(page, 10, {});
+        const payload = resp || {};
+        const data = payload.data || payload;
+        const history = data.history || data.histories || data.deliveries || data.items || [];
+        const normalized = history.map((d, i) => {
+          const ord = d.order || {};
+          const consumer = ord.consumer || d.consumer || {};
+          const rawStatus = (d.status || ord.status || 'delivered').toString().toLowerCase();
+          const normStatus = rawStatus === 'failed' ? 'cancelled' : rawStatus;
+          return {
+            id: d.id || d._id || ord._id || i,
+            orderNumber: ord.orderNumber || ord.number || d.orderNumber || '',
+            customer: {
+              name: consumer.firstName ? `${consumer.firstName} ${consumer.lastName || ''}` : (consumer.name || 'Client')
+            },
+            deliveryAddress: ord.deliveryInfo?.address || d.deliveryAddress || {},
+            status: normStatus,
+            completedDate: d.updatedAt || d.completedAt || d.deliveredAt || d.createdAt
+          };
+        });
+        if (mounted) setRows(normalized);
+      } catch {
+        if (mounted) setRows([]);
+      } finally {
+        if (mounted) setLoadingLocal(false);
+      }
+    };
+    load(1);
+    return () => { mounted = false; };
+  }, []);
+
+  // Charger l'historique au montage
+  useEffect(() => {
+    filterHistoryByDateRange('', '', '');
+  }, [filterHistoryByDateRange]);
+
   const getStatusBadge = (status) => {
     const statusStyles = {
       'Livrée': 'bg-[#E8F5E9] text-[#2E7D32]',
-      'Annulée': 'bg-[#FFEBEE] text-[#C62828]'
+      'Annulée': 'bg-[#FFEBEE] text-[#C62828]',
+      'En préparation': 'bg-yellow-100 text-yellow-800',
+      'En route': 'bg-purple-100 text-purple-800'
     };
 
     return (
@@ -46,7 +95,34 @@ const DeliveryHistory = () => {
     return '';
   };
 
-  const filtered = (deliveryHistory || []).filter((d) => {
+  const getStatusLabel = (raw) => {
+    const s = (raw || '').toString().toLowerCase();
+    if (s === 'assigned') return 'En préparation';
+    if (s === 'in-transit') return 'En route';
+    if (s === 'delivered' || s === 'completed') return 'Livrée';
+    if (s === 'cancelled' || s === 'failed') return 'Annulée';
+    return 'Livrée';
+  };
+
+  // Fusionner l'historique (terminées/annulées) et les livraisons en cours (mes livraisons)
+  const baseHistory = (rows && rows.length > 0) ? rows : (deliveryHistory || []);
+  const mappedMy = (myDeliveries || []).map((d, i) => {
+    const s = (d.status || '').toString().toLowerCase();
+    const status = s === 'failed' ? 'cancelled' : d.status;
+    return {
+      id: d.id || i,
+      orderNumber: d.orderNumber || d.number || '',
+      customer: d.customer,
+      deliveryAddress: d.deliveryAddress,
+      status,
+      completedDate: d.updatedAt || d.orderDate || new Date().toISOString()
+    };
+  });
+  const merged = [...baseHistory, ...mappedMy].filter((item, index, arr) =>
+    arr.findIndex((x) => (x.id || x.orderNumber) === (item.id || item.orderNumber)) === index
+  );
+  const base = merged;
+  const filtered = base.filter((d) => {
     const q = normalizeText(searchTerm);
     if (!q) return true;
     const name = normalizeText(formatCustomerName(d.customer));
@@ -61,7 +137,7 @@ const DeliveryHistory = () => {
 
   return (
     <DeliveryLayout>
-      <div className="max-w-6xl">
+      <div className="container mx-auto px-4">
         {/* Page Title */}
         <h1 className="text-3xl font-bold text-gray-800 mb-6">
           Historique des livraisons
@@ -127,50 +203,56 @@ const DeliveryHistory = () => {
           </button>
         </div>
 
-        {loading && (
+        {(loading || loadingLocal) && (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#59C94F]"></div>
           </div>
         )}
-        {error && !loading && (
+        {error && !(loading || loadingLocal) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
             {error}
           </div>
         )}
 
         {/* Delivery History List */}
+        {!(loading || loadingLocal) && filtered.length === 0 && (
+          <div className="bg-white rounded-lg p-10 shadow-sm w-full text-center text-gray-600">
+            Aucun historique à afficher.
+          </div>
+        )}
         <div className="space-y-4">
-          {!loading && filtered.map((delivery) => {
+          {!(loading || loadingLocal) && filtered.map((delivery) => {
             const name = formatCustomerName(delivery.customer) || 'Client';
             const address = formatAddress(delivery.deliveryAddress) || '';
-            const isCancelled = delivery.status === 'cancelled';
-            const isDelivered = delivery.status === 'delivered' || delivery.status === 'completed';
-            const eventType = isCancelled ? "Heure d'annulation" : 'Heure de livraison';
+            const orderNumber = delivery.orderNumber || delivery.number || '';
+            const raw = (delivery.status || '').toString().toLowerCase();
+            const isCancelled = raw === 'cancelled';
+            const label = getStatusLabel(raw);
             const when = delivery.completedDate || delivery.deliveredAt || delivery.cancelledAt || delivery.updatedAt || delivery.createdAt;
             const datetime = when ? new Date(when).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-            const statusLabel = isCancelled ? 'Annulée' : 'Livrée';
+            const statusLabel = label;
 
             return (
               <div
                 key={delivery.id}
-                className="bg-white rounded-lg p-5 border border-gray-200 hover:shadow-md transition-shadow"
+                className="bg-white rounded-lg p-6 shadow-sm w-full"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">
-                      {name}
-                    </h3>
-                    <p className="text-sm text-gray-500">{address}</p>
+                    <h3 className="text-lg font-bold text-[#333333] mb-1">{orderNumber ? `Commande ${orderNumber}` : name}</h3>
+                    <p className="text-sm text-[#888888]">{isCancelled ? 'Annulée le' : (label === 'Livrée' ? 'Livrée le' : 'Mise à jour le')} {datetime || '—'}</p>
+                    <p className="text-sm text-gray-500 mt-1">{address}</p>
                   </div>
-
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 mb-1">{eventType}</p>
-                    <p className="text-sm font-bold text-gray-800">{datetime}</p>
+                  <div className="w-16 h-16 rounded-lg overflow-hidden">
+                    <img
+                      src="/src/assets/livreur.jpg"
+                      alt="Livraison"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-
-                  <div>
-                    {getStatusBadge(statusLabel)}
-                  </div>
+                </div>
+                <div>
+                  {getStatusBadge(statusLabel)}
                 </div>
               </div>
             );

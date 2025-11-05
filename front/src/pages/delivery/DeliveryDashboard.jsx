@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronDown, 
   Check, 
@@ -12,10 +12,12 @@ import {
   Truck,
   Calendar,
   Search,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 import DeliveryLayout from '../../layouts/DeliveryLayout';
 import useDeliveryData from '../../hooks/useDeliveryData';
+import ProfileModal from '../../components/ProfileModal';
 import {
   BarChart,
   Bar,
@@ -47,7 +49,15 @@ const DeliveryDashboard = () => {
     completeDelivery,
     filterMyDeliveriesByStatus,
     changeAvailablePage,
-    changeMyDeliveriesPage
+    changeMyDeliveriesPage,
+    // Gestion du profil
+    profile,
+    profileLoading,
+    profileError,
+    updateProfile,
+    changePassword,
+    getProfile,
+    refreshProfile
   } = useDeliveryData();
 
   const [activeTab, setActiveTab] = useState('available'); // available, myDeliveries, history
@@ -55,6 +65,12 @@ const DeliveryDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState({});
   const [showNotesModal, setShowNotesModal] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Charger le profil au montage
+  useEffect(() => {
+    getProfile();
+  }, [getProfile]);
 
   // Couleurs pour les graphiques
   const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
@@ -176,11 +192,15 @@ const DeliveryDashboard = () => {
 
   return (
     <DeliveryLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full px-4 mx-auto">
+
         {/* En-tête */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Livreur</h1>
-          <p className="text-lg text-gray-600">Gérez vos livraisons et suivez vos performances</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Livreur</h1>
+            <p className="text-lg text-gray-600">Gérez vos livraisons et suivez vos performances</p>
+          </div>
+        
         </div>
 
         {/* Statistiques */}
@@ -258,37 +278,26 @@ const DeliveryDashboard = () => {
               >
                 Mes livraisons ({myDeliveries.length})
               </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'history'
-                    ? 'border-[#59C94F] text-[#59C94F]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Historique ({deliveryHistory.length})
-              </button>
             </nav>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Contenu principal */}
-          <div className="lg:col-span-2">
+        {/* Contenu principal en pleine largeur */}
+        <div className="w-full">
             {/* Livraisons disponibles */}
             {activeTab === 'available' && (
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="bg-white rounded-xl shadow-sm p-6 w-full">
                 <h2 className="text-xl font-bold text-gray-800 mb-6">Livraisons disponibles</h2>
                 
                 {availableDeliveries.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 w-full">
                     {availableDeliveries.map((delivery) => {
                       const isExpanded = expandedOrders[delivery.id];
                       
                       return (
                         <div
                           key={delivery.id}
-                          className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
+                          className="w-full border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
                         >
                           <div className="p-5">
                             {/* Header avec image et info produit */}
@@ -431,9 +440,8 @@ const DeliveryDashboard = () => {
                     className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#59C94F]"
                   >
                     <option value="">Tous les statuts</option>
-                    <option value="pending">En attente</option>
-                    <option value="accepted">Acceptée</option>
-                    <option value="in_transit">En transit</option>
+                    <option value="assigned">En préparation</option>
+                    <option value="in-transit">En route</option>
                     <option value="delivered">Livrée</option>
                   </select>
                 </div>
@@ -453,58 +461,24 @@ const DeliveryDashboard = () => {
                             </p>
                           </div>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            delivery.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            delivery.status === 'accepted' ? 'bg-blue-100 text-blue-800' :
-                            delivery.status === 'in_transit' ? 'bg-purple-100 text-purple-800' :
+                            delivery.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
+                            delivery.status === 'in-transit' ? 'bg-purple-100 text-purple-800' :
                             'bg-green-100 text-green-800'
                           }`}>
-                            {delivery.status === 'pending' ? 'En attente' :
-                             delivery.status === 'accepted' ? 'Acceptée' :
-                             delivery.status === 'in_transit' ? 'En transit' : 'Livrée'}
+                            {delivery.status === 'assigned' ? 'En préparation' :
+                             delivery.status === 'in-transit' ? 'En route' : 'Livrée'}
                           </span>
                         </div>
 
                         <div className="space-y-2 text-sm">
-                          <p><span className="font-medium">Quantité:</span> {delivery.quantity || 'Non spécifié'}</p>
-                          <p><span className="font-medium">Montant:</span> {delivery.amount ? `${delivery.amount} FCFA` : 'Non disponible'}</p>
-                          <p><span className="font-medium">Adresse livraison:</span> {formatAddress(delivery.deliveryAddress)}</p>
-                        </div>
-
-                        {/* Actions selon le statut */}
-                        <div className="flex gap-2 mt-4">
-                          {delivery.status === 'pending' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusChange(delivery.id, 'accepted')}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                Commencer
-                              </button>
-                            </>
-                          )}
-                          {delivery.status === 'accepted' && (
-                            <button
-                              onClick={() => handleStatusChange(delivery.id, 'in_transit')}
-                              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                            >
-                              En route
-                            </button>
-                          )}
-                          {delivery.status === 'in_transit' && (
-                            <button
-                              onClick={() => handleStatusChange(delivery.id, 'delivered')}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                              Marquer comme livré
-                            </button>
-                          )}
+                          {/* Informations supplémentaires (optionnelles) */}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">
-                    <Truck className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                     <p>Aucune livraison assignée</p>
                   </div>
                 )}
@@ -573,56 +547,6 @@ const DeliveryDashboard = () => {
             )}
           </div>
 
-          {/* Graphiques */}
-          <div className="space-y-6">
-            {/* Performance mensuelle */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Performance mensuelle</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" stroke="#666" />
-                  <YAxis stroke="#666" />
-                  <Tooltip
-                    formatter={(value, name) => [
-                      name === 'earnings' ? `${value.toLocaleString()} FCFA` : value,
-                      name === 'earnings' ? 'Gains' : 'Livraisons'
-                    ]}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar dataKey="completed" fill="#10B981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Répartition des statuts */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Répartition des livraisons</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={deliveryStatusData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {deliveryStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
         {/* Modal pour les notes de livraison */}
         {showNotesModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -658,6 +582,8 @@ const DeliveryDashboard = () => {
             </div>
           </div>
         )}
+
+
       </div>
     </DeliveryLayout>
   );

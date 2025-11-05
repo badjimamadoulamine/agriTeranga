@@ -3,7 +3,7 @@
  * Gère les produits, commandes et statistiques du producteur
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 import { toast } from 'react-toastify';
 
@@ -27,6 +27,11 @@ const useProducerData = () => {
   const [productsFilters, setProductsFilters] = useState({ search: '', category: '', status: '' });
   const [ordersFilters, setOrdersFilters] = useState({ status: '', dateFrom: '', dateTo: '' });
 
+  // États pour la gestion du profil
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState(null);
+
   /**
    * Charger les statistiques du producteur
    */
@@ -34,12 +39,34 @@ const useProducerData = () => {
     try {
       const response = await apiService.getProducerStats();
       if (response.status === 'success' && response.data) {
-        setStats(response.data);
+        // Extraire les stats depuis la réponse du dashboard
+        const dashboardData = response.data;
+        setStats({
+          totalProducts: dashboardData.totalProducts || 0,
+          totalOrders: dashboardData.totalOrders || 0,
+          totalRevenue: dashboardData.totalRevenue || 0,
+          averageRating: dashboardData.averageRating || 0
+        });
+      } else {
+        // Si pas de données, utiliser des valeurs par défaut
+        setStats({
+          totalProducts: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          averageRating: 0
+        });
       }
     } catch (err) {
       console.error('Erreur lors du chargement des statistiques:', err);
-      toast.error('Erreur lors du chargement des statistiques');
-      toast.info('Vérifiez votre connexion internet');
+      // Utiliser des valeurs par défaut en cas d'erreur
+      setStats({
+        totalProducts: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        averageRating: 0
+      });
+      // toast.error('Erreur lors du chargement des statistiques');
+      // toast.info('Vérifiez votre connexion internet');
     }
   }, []);
 
@@ -56,12 +83,29 @@ const useProducerData = () => {
         filters?.category || ''
       );
       
-      if (response.status === 'success' && response.data) {
-        setProducts(response.data.products || []);
+      if (response?.status === 'success') {
+        const data = response.data || {};
+        const items = data.products || data.items || data.results || [];
+        // Normaliser les produits pour l'UI (id au lieu de _id)
+        const normalized = (items || []).map((p) => ({
+          id: p.id || p._id || p.productId,
+          name: p.name,
+          description: p.description,
+          price: p.price,
+          category: p.category,
+          stock: p.stock,
+          unit: p.unit,
+          isAvailable: typeof p.isAvailable === 'boolean' ? p.isAvailable : (p.isPublished ?? false),
+          image: p.image || p.images?.[0] || p.thumbnail,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt
+        }));
+
+        setProducts(normalized);
         setProductsPagination({
-          page: response.data.currentPage || page,
-          totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          page: data.currentPage || data.page || page,
+          totalPages: data.totalPages || data.pages || 1,
+          total: data.total || data.count || normalized.length
         });
       }
     } catch (err) {
@@ -80,12 +124,21 @@ const useProducerData = () => {
     try {
       const response = await apiService.getProducerOrders(page, 20, filters);
       
-      if (response.status === 'success' && response.data) {
-        setOrders(response.data.orders || []);
+      if (response?.status === 'success') {
+        const data = response.data || {};
+        const items = data.orders || data.items || data.results || [];
+        const normalized = (items || []).map((o) => ({
+          id: o.id || o._id || o.orderId,
+          status: o.status,
+          totalAmount: o.totalAmount || o.amount || 0,
+          createdAt: o.createdAt,
+          updatedAt: o.updatedAt
+        }));
+        setOrders(normalized);
         setOrdersPagination({
-          page: response.data.currentPage || page,
-          totalPages: response.data.totalPages || 1,
-          total: response.data.total || 0
+          page: data.currentPage || data.page || page,
+          totalPages: data.totalPages || data.pages || 1,
+          total: data.total || data.count || normalized.length
         });
       }
     } catch (err) {
@@ -286,6 +339,33 @@ const useProducerData = () => {
     setLoading(false);
   }, [loadStats, loadProducts, loadOrders, productsPagination.page, productsFilters, ordersPagination.page, ordersFilters]);
 
+  // Agréger les ventes par mois à partir des commandes
+  const salesChartData = React.useMemo(() => {
+    try {
+      const byMonth = new Map();
+      (orders || []).forEach((o) => {
+        const d = o.createdAt ? new Date(o.createdAt) : null;
+        if (!d || isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const prev = byMonth.get(key) || { revenue: 0, orders: 0, year: d.getFullYear(), monthIndex: d.getMonth() };
+        prev.revenue += Number(o.totalAmount || 0);
+        prev.orders += 1;
+        byMonth.set(key, prev);
+      });
+      // trier chronologiquement et formater
+      const months = Array.from(byMonth.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([_, v]) => ({
+          month: new Date(v.year, v.monthIndex, 1).toLocaleString('fr-FR', { month: 'short' }),
+          revenue: v.revenue,
+          orders: v.orders
+        }));
+      return months;
+    } catch {
+      return [];
+    }
+  }, [orders]);
+
   /**
    * Effet pour charger les données au montage
    */
@@ -308,6 +388,75 @@ const useProducerData = () => {
     initData();
   }, [loadStats, loadProducts, loadOrders]);
 
+  /**
+   * Charger le profil de l'utilisateur
+   */
+  const getProfile = useCallback(async () => {
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const response = await apiService.getMyProfile();
+      if (response.status === 'success' && response.data?.user) {
+        setProfile(response.data.user);
+      } else {
+        setProfileError('Erreur lors du chargement du profil');
+      }
+    } catch (err) {
+      console.error('Erreur profil:', err);
+      setProfileError(err.response?.data?.message || 'Erreur lors du chargement du profil');
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  /**
+   * Mettre à jour le profil
+   */
+  const updateProfile = useCallback(async (profileData) => {
+    try {
+      const response = await apiService.updateProfile(profileData);
+      if (response.status === 'success') {
+        await getProfile(); // Recharger le profil
+        toast.success('Profil mis à jour avec succès');
+        return response;
+      } else {
+        toast.error(response.message || 'Erreur lors de la mise à jour du profil');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      console.error('Erreur mise à jour profil:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors de la mise à jour du profil');
+      throw err;
+    }
+  }, [getProfile]);
+
+  /**
+   * Changer le mot de passe
+   */
+  const changePassword = useCallback(async (passwordData) => {
+    try {
+      const response = await apiService.changePassword(passwordData);
+      if (response.status === 'success') {
+        toast.success('Mot de passe modifié avec succès');
+        return response;
+      } else {
+        toast.error(response.message || 'Erreur lors du changement de mot de passe');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      console.error('Erreur changement mot de passe:', err);
+      toast.error(err.response?.data?.message || 'Erreur lors du changement de mot de passe');
+      throw err;
+    }
+  }, []);
+
+  /**
+   * Rafraîchir le profil
+   */
+  const refreshProfile = useCallback(async () => {
+    await getProfile();
+  }, [getProfile]);
+
   return {
     // Données
     stats,
@@ -315,6 +464,7 @@ const useProducerData = () => {
     orders,
     loading,
     error,
+    salesChartData,
     
     // Pagination
     productsPagination,
@@ -336,6 +486,15 @@ const useProducerData = () => {
     changeProductsPage,
     changeOrdersPage,
     refreshData,
+    
+    // Gestion du profil
+    profile,
+    profileLoading,
+    profileError,
+    updateProfile,
+    changePassword,
+    getProfile,
+    refreshProfile,
     
     // Utilitaires
     setError

@@ -39,11 +39,13 @@ export const AuthProvider = ({ children }) => {
 
   const login = (userData) => {
     setUser(userData);
+    try { window.dispatchEvent(new Event('auth-changed')); } catch {}
   };
 
   const logout = () => {
     authService.logout();
     setUser(null);
+    try { window.dispatchEvent(new Event('auth-changed')); } catch {}
   };
 
   const updateUser = (updatedUser) => {

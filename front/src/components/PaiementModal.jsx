@@ -7,13 +7,27 @@ import { useCart } from "../contexts/CartContext";
 import apiService from "../services/apiService";
 import { toast } from "react-toastify";
 
-const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
+const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0, deliveryInfo = null }) => {
   const [selected, setSelected] = useState(null);
   const [showWavePayment, setShowWavePayment] = useState(false);
   const navigate = useNavigate();
   const { cartItems, getTotalPrice } = useCart();
   const productsTotal = getTotalPrice();
   const totalToPay = productsTotal + (Number(deliveryFee) || 0);
+
+  // Génère un numéro de commande lisible côté frontend si l'API l'exige
+  const generateOrderNumber = () => {
+    const pad = (n) => String(n).padStart(2, '0');
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = pad(d.getMonth() + 1);
+    const day = pad(d.getDate());
+    const h = pad(d.getHours());
+    const min = pad(d.getMinutes());
+    const s = pad(d.getSeconds());
+    const rand = Math.floor(1000 + Math.random() * 9000); // 4 digits
+    return `ORD-${y}${m}${day}-${h}${min}${s}-${rand}`;
+  };
 
   if (!isOpen) return null;
 
@@ -74,11 +88,11 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
       // Pour Cash, ne pas fermer le modal tant que la création n'a pas réussi
       try {
         const items = await buildItemsFromServerCart();
-        // Validation des items (ObjectId 24 hex et quantités valides)
-        const isValidObjectId = (v) => typeof v === 'string' && /^[0-9a-fA-F]{24}$/.test(v);
+        // Validation assouplie: laisser le backend valider les IDs produits
+        const isValidId = (v) => typeof v === 'string' && v.trim().length > 0;
         const validItems = (items || [])
-          .map(it => ({ product: String(it.product || ''), quantity: Math.max(1, Number(it.quantity) || 1) }))
-          .filter(it => isValidObjectId(it.product));
+          .map(it => ({ product: String(it.product || '').trim(), quantity: Math.max(1, Number(it.quantity) || 1) }))
+          .filter(it => isValidId(it.product));
         if (validItems.length === 0) {
           toast.error("Votre panier n'est pas valide. Veuillez vérifier vos articles puis réessayer.");
           return;
@@ -86,9 +100,16 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
         // Appel backend: créer la commande (demandé: items, paymentMethod, deliveryInfo)
         try {
           await apiService.createOrder({
+            orderNumber: generateOrderNumber(),
             items: validItems,
             paymentMethod: 'cash-on-delivery',
-            deliveryInfo: { method: 'home-delivery', address: {} }
+            deliveryInfo: deliveryInfo || { method: 'home-delivery', address: {} },
+            deliveryFee: Number(deliveryFee) || 0,
+            totals: {
+              productsTotal,
+              deliveryFee: Number(deliveryFee) || 0,
+              totalToPay
+            }
           });
         } catch (e) {
           // Afficher l'erreur renvoyée par l'API et stopper le flux (pas de fallback local, pas de navigation)
@@ -114,11 +135,11 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
     // Rediriger vers la page de confirmation ou livraison
     try {
       const items = await buildItemsFromServerCart();
-      // Validation des items (ObjectId 24 hex et quantités valides)
-      const isValidObjectId = (v) => typeof v === 'string' && /^[0-9a-fA-F]{24}$/.test(v);
+      // Validation assouplie
+      const isValidId = (v) => typeof v === 'string' && v.trim().length > 0;
       const validItems = (items || [])
-        .map(it => ({ product: String(it.product || ''), quantity: Math.max(1, Number(it.quantity) || 1) }))
-        .filter(it => isValidObjectId(it.product));
+        .map(it => ({ product: String(it.product || '').trim(), quantity: Math.max(1, Number(it.quantity) || 1) }))
+        .filter(it => isValidId(it.product));
       if (validItems.length === 0) {
         toast.error("Votre panier n'est pas valide. Veuillez vérifier vos articles puis réessayer.");
         return;
@@ -127,9 +148,16 @@ const PaiementModal = ({ isOpen, onClose, onBack, deliveryFee = 0 }) => {
       // Appel backend: créer la commande
       try {
         await apiService.createOrder({
+          orderNumber: generateOrderNumber(),
           items: validItems,
           paymentMethod: 'mobile-money',
-          deliveryInfo: { method: 'home-delivery', address: {} }
+          deliveryInfo: deliveryInfo || { method: 'home-delivery', address: {} },
+          deliveryFee: Number(deliveryFee) || 0,
+          totals: {
+            productsTotal,
+            deliveryFee: Number(deliveryFee) || 0,
+            totalToPay
+          }
         });
       } catch (e) {
         const msg = (e && e.message) ? e.message : "La création de la commande a échoué";

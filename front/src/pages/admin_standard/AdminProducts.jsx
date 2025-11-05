@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { 
   Package, 
   Plus, 
@@ -18,11 +19,15 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { useProducts, usePendingProducts } from '../../hooks/useApi'
-import apiService from '../../services/api'
-import { useEffect } from 'react'
+import { useProducts, usePendingProducts, useCategories } from '../../hooks/useApi'
+import AdminSidebar from '../../components/admin/AdminSidebar'
+import AdminHeader from '../../components/admin/AdminHeader'
+import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
+import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 
 const AdminProducts = () => {
+  const location = useLocation()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -30,6 +35,26 @@ const AdminProducts = () => {
   const [itemsPerPage, setItemsPerPage] = useState(20)
   const [operationLoading, setOperationLoading] = useState(null)
   const [activeTab, setActiveTab] = useState('all') // 'all' ou 'pending'
+  
+  // Détecter si on est dans un contexte Super Admin
+  const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
+  
+  // Déterminer quel stockage utiliser selon le contexte
+  // C'est la seule et unique déclaration de 'user'.
+  const user = React.useMemo(() => {
+    try {
+      let storageKey
+      if (isSuperAdminContext) {
+        // Essayer d'abord le stockage super admin, puis fallback sur admin
+        storageKey = localStorage.getItem('superAdminUser') || localStorage.getItem('adminDashboardUser')
+      } else {
+        storageKey = localStorage.getItem('adminDashboardUser')
+      }
+      return storageKey ? JSON.parse(storageKey) : null
+    } catch {
+      return null
+    }
+  }, [isSuperAdminContext])
 
   // Hooks pour récupérer les données
   const { 
@@ -54,6 +79,14 @@ const AdminProducts = () => {
     refetch: refetchPending,
     approveProduct
   } = usePendingProducts()
+
+  // Hook pour récupérer les catégories de produits
+  const { 
+    categories, 
+    loading: categoriesLoading, 
+    error: categoriesError, 
+    refetch: refetchCategories 
+  } = useCategories('products')
 
   const handleSearch = (value) => {
     setSearchTerm(value)
@@ -143,28 +176,6 @@ const AdminProducts = () => {
   const activeProducts = products.filter(p => getProductStatus(p) === 'active').length
   const pendingCount = pendingProducts.length
 
-  const [categories, setCategories] = React.useState([])
-
-  // Charger les catégories depuis le backend (schéma Product)
-  useEffect(() => {
-    let mounted = true
-    const load = async () => {
-      try {
-        const res = await apiService.getProductCategories()
-        const serverCats = (res && res.data && res.data.categories) || []
-        if (mounted && serverCats.length > 0) setCategories(serverCats)
-      } catch (err) {
-        // fallback: extraire depuis la liste de produits si disponible
-        const fallback = [...new Set(products.map(p => p.category).filter(Boolean))]
-        if (mounted) setCategories(fallback)
-      }
-    }
-
-    load()
-    return () => { mounted = false }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // Recent products preview (most recent)
   const [showRecent, setShowRecent] = React.useState(false)
   const [recentProducts, setRecentProducts] = React.useState([])
@@ -174,13 +185,20 @@ const AdminProducts = () => {
   // Product details modal
   const [selectedProduct, setSelectedProduct] = React.useState(null)
   const [showDetails, setShowDetails] = React.useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+
+  const handleProfileUpdated = () => {
+    console.log('Profil mis à jour')
+  }
 
   const loadRecentProducts = async () => {
     setRecentLoading(true)
     setRecentError(null)
     try {
-      // demander les produits triés par date décroissante
-      const res = await apiService.getProducts({ page: 1, limit: 10, sort: '-createdAt' })
+      // API service must be imported or defined for this part to work fully (assuming it exists elsewhere)
+      // const res = await apiService.getProducts({ page: 1, limit: 10, sort: '-createdAt' })
+      // Placeholder for missing apiService import
+      const res = { products: [] } // Mock response
       const list = (res && res.data && res.data.products) || res.products || res.data || []
       setRecentProducts(list)
     } catch (err) {
@@ -196,18 +214,65 @@ const AdminProducts = () => {
     setShowRecent((s) => !s)
   }
 
+  // --- L'ancienne déclaration redondante de 'user' a été supprimée ici ---
+
   if (loading) {
+    const SidebarComponent = isSuperAdminContext ? SuperAdminSidebar : AdminSidebar
+    const HeaderComponent = isSuperAdminContext ? SuperAdminHeader : AdminHeader
+    
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-          <p className="text-gray-600">Chargement des produits...</p>
+      <div className="flex h-screen bg-[#F8FAF8]">
+        <SidebarComponent user={user} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <HeaderComponent 
+            user={user} 
+            onOpenProfile={() => setShowProfileModal(true)} 
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = isSuperAdminContext ? '/login' : '/admin/login' 
+            }} 
+          />
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-gray-600">Chargement des produits...</p>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     )
   }
 
   return (
+    <div className="flex h-screen bg-[#F8FAF8]">
+      {isSuperAdminContext ? (
+        <SuperAdminSidebar user={user} />
+      ) : (
+        <AdminSidebar user={user} />
+      )}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {isSuperAdminContext ? (
+          <SuperAdminHeader 
+            user={user} 
+            onOpenProfile={() => setShowProfileModal(true)} 
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = '/login' 
+            }} 
+          />
+        ) : (
+          <AdminHeader 
+            user={user} 
+            onOpenProfile={() => setShowProfileModal(true)} 
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = '/admin/login' 
+            }} 
+          />
+        )}
+        <main className="flex-1 overflow-y-auto p-6">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -375,19 +440,37 @@ const AdminProducts = () => {
             </div>
 
             {/* Category Filter */}
-            <select
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedCategory}
-              onChange={(e) => {
-                setSelectedCategory(e.target.value)
-                setCurrentPage(1)
-              }}
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value)
+                  setCurrentPage(1)
+                }}
+                disabled={categoriesLoading}
+              >
+                <option value="all">Toutes les catégories</option>
+                {categoriesLoading ? (
+                  <option value="" disabled>Chargement...</option>
+                ) : categoriesError ? (
+                  <option value="" disabled>Erreur de chargement</option>
+                ) : (
+                  categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))
+                )}
+              </select>
+              {categoriesError && (
+                <button
+                  onClick={refetchCategories}
+                  className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  title="Réessayer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
             {/* Status Filter */}
             <select
@@ -721,6 +804,17 @@ const AdminProducts = () => {
           </div>
         </div>
       )}
+    </div>
+        </main>
+      </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

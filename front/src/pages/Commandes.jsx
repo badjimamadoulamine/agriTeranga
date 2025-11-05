@@ -25,26 +25,57 @@ export default function Commandes({ onOpenRegister, onOpenLogin }) {
         else if (Array.isArray(payload.orders)) arr = payload.orders;
         else if (Array.isArray(payload)) arr = payload;
 
-        // Normaliser en shape front utilisé par le modal
-        const normalized = arr.map((o, idx) => ({
-          id: o.id || o._id || idx,
-          orderNumber: o.orderNumber || o.number || `ORD${idx}`,
-          orderDate: o.createdAt || o.orderDate,
-          estimatedDeliveryDate: o.estimatedDeliveryDate || o.delivery?.estimatedDeliveryDate,
-          statut: o.status || o.state || 'En route',
-          articles: (o.items || o.products || []).map((it, i) => ({
+        // Normaliser en shape front utilisé par le modal, avec fallback de calcul
+        const normalized = arr.map((o, idx) => {
+          const rawItems = (o.items || o.products || []);
+          const articles = rawItems.map((it, i) => ({
             id: it.id || it._id || i,
             nom: it.name || it.productName || it.product?.name || `Article ${i+1}`,
             quantite: it.quantity || it.qty || 1,
             prix: Number(it.unitPrice || it.price || it.product?.price || 0),
             image: it.image || it.product?.imageUrl || ''
-          })),
-          recapitulatif: {
-            sousTotal: Number(o.totals?.productsTotal ?? o.subtotal ?? 0),
-            fraisLivraison: Number(o.totals?.deliveryFee ?? o.deliveryFee ?? 0),
-            total: Number(o.totals?.totalToPay ?? o.total ?? 0)
+          }));
+          const backendSub = Number(o.totals?.productsTotal ?? o.subtotal);
+          const computedSub = Number.isFinite(backendSub) && backendSub > 0
+            ? backendSub
+            : rawItems.reduce((sum, it) => {
+                const q = Number(it.quantity || it.qty || 1) || 1;
+                const p = Number(it.unitPrice || it.price || it.product?.price || 0) || 0;
+                return sum + q * p;
+              }, 0);
+          const backendFee = Number(o.totals?.deliveryFee ?? o.deliveryFee);
+          // Fallback: calcul à partir de deliveryInfo si non fourni par le backend
+          let fraisLivraison = 0;
+          if (Number.isFinite(backendFee) && backendFee >= 0) {
+            fraisLivraison = backendFee;
+          } else {
+            const method = o.deliveryInfo?.method || o.delivery?.method;
+            if (method === 'pickup-point' || method === 'farm-pickup') {
+              fraisLivraison = 0;
+            } else {
+              const city = o.deliveryInfo?.address?.city || o.delivery?.address?.city || '';
+              if (city === 'Dakar') fraisLivraison = 500;
+              else if (city === 'Thiès') fraisLivraison = 1000;
+              else if (city) fraisLivraison = 1500;
+              else fraisLivraison = 0;
+            }
           }
-        }));
+          const backendTotal = Number(o.totals?.totalToPay ?? o.total);
+          const total = Number.isFinite(backendTotal) && backendTotal > 0 ? backendTotal : (computedSub + fraisLivraison);
+          return {
+            id: o.id || o._id || idx,
+            orderNumber: o.orderNumber || o.number || `ORD${idx}`,
+            orderDate: o.createdAt || o.orderDate,
+            estimatedDeliveryDate: o.estimatedDeliveryDate || o.delivery?.estimatedDeliveryDate,
+            statut: o.status || o.state || 'En route',
+            articles,
+            recapitulatif: {
+              sousTotal: computedSub,
+              fraisLivraison,
+              total
+            }
+          };
+        });
         setOrders(normalized);
       } catch (e) {
         // Fallback sessionStorage

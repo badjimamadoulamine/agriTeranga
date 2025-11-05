@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+
 /**
  * @swagger
  * components:
@@ -26,6 +27,7 @@ const orderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
     unique: true,
+    required: true,
     default: function() {
       const date = new Date();
       const year = date.getFullYear().toString().slice(-2);
@@ -117,5 +119,7 @@ const orderSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Le default ci-dessus garantit un orderNumber avant validation
 
 module.exports = mongoose.model('Order', orderSchema);

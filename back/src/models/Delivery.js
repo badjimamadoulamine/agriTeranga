@@ -13,7 +13,7 @@ const deliverySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['assigned', 'picked-up', 'in-transit', 'livreur', 'failed'],
+    enum: ['assigned', 'in-transit', 'delivered', 'failed'],
     default: 'assigned'
   },
   pickupLocation: {

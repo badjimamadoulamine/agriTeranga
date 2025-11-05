@@ -40,6 +40,7 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {
@@ -49,8 +50,8 @@ apiClient.interceptors.request.use(
 
 // Intercepteur pour gérer les erreurs de réponse
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  async (response) => response,
+  async (error) => {
     if (error.response?.status === 401) {
       // Token expiré ou invalide - rediriger vers la page de connexion appropriée
       localStorage.removeItem('token');
@@ -80,18 +81,75 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Helpers & in-memory cache for GET requests
+const GET_CACHE = new Map();
+const CACHE_TTL_MS = 30000; // 30s
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const buildCacheKey = (endpoint, options = {}) => {
+  try {
+    const method = (options.method || 'GET').toUpperCase();
+    if (method !== 'GET') return null;
+    const params = options.params ? JSON.stringify(options.params) : '';
+    return `${endpoint}::${params}`;
+  } catch {
+    return `${endpoint}`;
+  }
+};
+
 class ApiService {
   /**
    * Requête générique avec gestion d'erreurs
    */
   async request(endpoint, options = {}) {
-    try {
-      const response = await apiClient.request({
-        url: endpoint,
-        ...options
-      });
-      return response.data;
-    } catch (error) {
+    const method = (options.method || 'GET').toUpperCase();
+    const isGet = method === 'GET';
+    const noCache = options.noCache === true;
+    const cacheKey = isGet && !noCache ? buildCacheKey(endpoint, options) : null;
+
+    // Serve from cache if fresh
+    if (cacheKey && GET_CACHE.has(cacheKey)) {
+      const entry = GET_CACHE.get(cacheKey);
+      if (Date.now() - entry.time < CACHE_TTL_MS) {
+        return entry.data; // already response.data
+      }
+    }
+
+    // Retry loop for 429 on GETs
+    const maxAttempts = isGet ? 4 : 1;
+    let attempt = 0;
+    while (true) {
+      try {
+        // Éviter notre cache mémoire si noCache
+        const reqOptions = { ...options };
+        delete reqOptions.noCache;
+        const response = await apiClient.request({ url: endpoint, method, ...reqOptions });
+        const data = response.data;
+        if (isGet) {
+          if (cacheKey) GET_CACHE.set(cacheKey, { time: Date.now(), data });
+        } else {
+          // Invalidate all GET cache entries after a mutating request
+          GET_CACHE.clear();
+        }
+        return data;
+      } catch (error) {
+        // Handle 429 with backoff
+        const status = error?.response?.status;
+        if (isGet && status === 429 && attempt < maxAttempts - 1) {
+          attempt++;
+          const retryAfter = error.response?.headers?.['retry-after'];
+          let delay = 0;
+          if (retryAfter) {
+            const sec = parseInt(retryAfter, 10);
+            if (!Number.isNaN(sec)) delay = sec * 1000;
+          }
+          if (!delay) {
+            // exponential backoff with jitter: 400ms * 2^attempt ± 20%
+            const base = 400 * Math.pow(2, attempt - 1);
+            delay = Math.min(30000, Math.round(base * (0.8 + Math.random() * 0.4)));
+          }
+          await sleep(delay);
+          continue;
+        }
       console.error('API Error:', error);
 
       if (error.response) {
@@ -125,6 +183,7 @@ class ApiService {
           message: 'Erreur de configuration',
           data: null
         };
+      }
       }
     }
   }
@@ -269,6 +328,26 @@ class ApiService {
   }
 
   /**
+   * Récupérer l'admin courant depuis le stockage local (synchrone)
+   * Utilisé par les hooks sans await (ex: useAuth.getCurrentAdmin())
+   */
+  getCurrentAdmin() {
+    try {
+      const raw =
+        localStorage.getItem('adminDashboardUser') ||
+        localStorage.getItem('user');
+      if (!raw) return null;
+      const user = JSON.parse(raw);
+      if (user && (user.role === 'admin' || user.isSuperAdmin === true)) {
+        return user;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Mettre à jour mon profil (inclut upload photo)
    */
   async updateMyProfile(profileData) {
@@ -292,6 +371,26 @@ class ApiService {
     return await this.request('/users/change-password', {
       method: 'PUT',
       data: { currentPassword, newPassword, confirmPassword }
+    });
+  }
+
+  /**
+   * Demander la réinitialisation du mot de passe (envoi email)
+   */
+  async forgotPassword(email) {
+    return await this.request('/auth/forgot-password', {
+      method: 'POST',
+      data: { email }
+    });
+  }
+
+  /**
+   * Réinitialiser le mot de passe avec un token
+   */
+  async resetPassword(token, password) {
+    return await this.request(`/auth/reset-password/${encodeURIComponent(token)}`, {
+      method: 'PUT',
+      data: { password }
     });
   }
 
@@ -320,12 +419,7 @@ class ApiService {
     return await this.getAdminDashboard();
   }
 
-  /**
-   * Statistiques livreur
-   */
-  async getDeliveryStats() {
-    return await this.request('/users/deliverer/stats');
-  }
+
 
   /**
    * Liste des utilisateurs avec filtres
@@ -394,8 +488,8 @@ class ApiService {
    * Statistiques du producteur
    */
   async getProducerStats() {
-    // Backend route is /users/stats (protected, producteur only)
-    return await this.request('/users/stats');
+    // Get producer dashboard data which includes stats
+    return await this.request('/users/producer/dashboard');
   }
 
   /**
@@ -507,7 +601,7 @@ class ApiService {
   // PANIER
   // =====================
   async getCart() {
-    return await this.request('/cart');
+    return await this.request('/cart', { noCache: true });
   }
 
   async addToCart(productId, quantity = 1) {
@@ -537,6 +631,41 @@ class ApiService {
   }
 
   /**
+   * Liste des produits (admin/général) avec filtres flexibles
+   */
+  async getProducts(filters = {}) {
+    // Supporter à la fois un objet de filtres et (page, limit, ...)
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      category = '',
+      minPrice,
+      maxPrice,
+      isOrganic,
+      sort
+    } = (typeof filters === 'object' ? filters : {}) || {};
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+
+    const appendIf = (key, value) => {
+      if (value !== undefined && value !== null && value !== '') params.append(key, String(value));
+    };
+
+    appendIf('search', search);
+    appendIf('category', category);
+    appendIf('minPrice', minPrice);
+    appendIf('maxPrice', maxPrice);
+    if (isOrganic !== undefined) params.append('isOrganic', String(Boolean(isOrganic)));
+    appendIf('sort', sort);
+
+    return await this.request(`/products?${params.toString()}`);
+  }
+
+  /**
    * Créer un nouveau produit
    */
   async createProduct(productData) {
@@ -563,6 +692,33 @@ class ApiService {
     return await this.request(`/products/${productId}`, {
       method: 'DELETE'
     });
+  }
+
+  /**
+   * Produits en attente de validation (admin)
+   */
+  async getPendingProducts(page = 1, limit = 50) {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+    return await this.request(`/admin/products/pending?${params.toString()}`);
+  }
+
+  /**
+   * Approuver un produit (admin)
+   */
+  async approveProduct(productId) {
+    return await this.request(`/admin/products/${productId}/approve`, {
+      method: 'PATCH'
+    });
+  }
+
+  /**
+   * Catégories produits (helper backend)
+   */
+  async getProductCategories() {
+    return await this.request('/products/categories');
   }
 
   /**
@@ -656,7 +812,7 @@ class ApiService {
     }
     if (statusValue) params.append('status', statusValue);
 
-    // Backend route lives under /orders/producer/list
+    // Backend route is /orders/producer/list for producer orders
     return await this.request(`/orders/producer/list?${params.toString()}`);
   }
 
@@ -689,6 +845,92 @@ class ApiService {
     return await this.request(`/formations/my?${params.toString()}`);
   }
 
+  /**
+   * Formations (admin/général) avec filtres
+   */
+  async getFormations(filters = {}) {
+    const {
+      page = 1,
+      limit = 20,
+      category,
+      type,
+      level,
+      search,
+      isPublished,
+      sort
+    } = (filters || {});
+
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit)
+    });
+
+    const appendIf = (key, value) => {
+      if (value !== undefined && value !== null && value !== '') params.append(key, String(value));
+    };
+
+    appendIf('category', category);
+    appendIf('type', type);
+    appendIf('level', level);
+    appendIf('search', search);
+    if (isPublished !== undefined) params.append('isPublished', String(Boolean(isPublished)));
+    appendIf('sort', sort);
+
+    return await this.request(`/formations?${params.toString()}`);
+  }
+
+  /**
+   * Publier/Dépublier une formation (toggle)
+   */
+  async toggleFormationPublish(formationId) {
+    return await this.request(`/formations/${formationId}/publish`, {
+      method: 'PATCH'
+    });
+  }
+
+  /**
+   * Créer une formation
+   */
+  async createFormation(formationData) {
+    return await this.request('/formations', {
+      method: 'POST',
+      data: formationData
+    });
+  }
+
+  /**
+   * Mettre à jour une formation
+   */
+  async updateFormation(formationId, formationData) {
+    return await this.request(`/formations/${formationId}`, {
+      method: 'PUT',
+      data: formationData
+    });
+  }
+
+  /**
+   * Supprimer une formation
+   */
+  async deleteFormation(formationId) {
+    return await this.request(`/formations/${formationId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Options/Formations metadata (catégories, types, niveaux, statuts)
+   */
+  async getFormationOptions() {
+    return await this.request('/formations/options');
+  }
+
+  /**
+   * Catégories de formations
+   */
+  async getFormationCategories() {
+    return await this.request('/formations/categories');
+  }
+
   // =====================
   // DELIVERY DASHBOARD
   // =====================
@@ -704,28 +946,48 @@ class ApiService {
    * Statistiques du livreur
    */
   async getDeliveryStats() {
-    return await this.request('/users/deliverer/stats');
+    const response = await this.request('/deliveries', { noCache: true });
+    if (response.status === 'success' && response.data?.deliveries) {
+      const deliveries = response.data.deliveries;
+      const completedDeliveries = deliveries.filter(d => d.status === 'delivered').length;
+      const inPreparationDeliveries = deliveries.filter(d => d.status === 'assigned').length;
+      const inTransitDeliveries = deliveries.filter(d => ['picked-up', 'in-transit'].includes(d.status)).length;
+      const cancelledDeliveries = deliveries.filter(d => d.status === 'failed' || (d.order && d.order.status === 'cancelled')).length;
+      const stats = {
+        totalDeliveries: response.total || deliveries.length,
+        completedDeliveries,
+        pendingDeliveries: inPreparationDeliveries + inTransitDeliveries,
+        inPreparationDeliveries,
+        inTransitDeliveries,
+        cancelledDeliveries,
+        totalEarnings: completedDeliveries * 1000 // Calcul approximatif
+      };
+      return { status: 'success', data: stats };
+    }
+    return response;
   }
 
   /**
-   * Mes livraisons en cours
+   * Mes livraisons (pagination)
    */
-  async getMyActiveDeliveries() {
-    return await this.request('/deliveries/my/active');
-  }
-
-  /**
-   * Mes livraisons à venir
-   */
-  async getMyUpcomingDeliveries() {
-    return await this.request('/deliveries/my/upcoming');
+  async getMyDeliveries(page = 1, limit = 10, filters = {}) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (filters.status) params.append('status', filters.status);
+    return await this.request(`/deliveries?${params.toString()}`, { noCache: true });
   }
 
   /**
    * Livraisons disponibles à accepter
    */
-  async getAvailableDeliveries() {
-    return await this.request('/deliveries/available');
+  async getAvailableDeliveries(page = 1, limit = 10, filters = {}) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    return await this.request(`/deliveries/available?${params.toString()}`, { noCache: true });
   }
 
   /**
@@ -739,6 +1001,21 @@ class ApiService {
 
     if (status) params.append('status', status);
 
+    return await this.request(`/deliveries/my/history?${params.toString()}`, { noCache: true });
+  }
+
+  /**
+   * Historique des livraisons (alias)
+   * Compatible avec les appels existants: getDeliveryHistory(page, limit, filters)
+   */
+  async getDeliveryHistory(page = 1, limit = 50, filters = {}) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    if (filters.status) params.append('status', filters.status);
+    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.append('dateTo', filters.dateTo);
     return await this.request(`/deliveries/my/history?${params.toString()}`);
   }
 
@@ -785,48 +1062,13 @@ class ApiService {
    * Détails d'une livraison
    */
   async getDeliveryDetails(deliveryId) {
-    return await this.request(`/deliveries/${deliveryId}`);
+    return await this.request(`/deliveries/${deliveryId}`, { noCache: true });
   }
 
   /**
-   * Alias pour les livraisons disponibles (pagination)
+   * Changer le statut d'un utilisateur (alias)
    */
-  async getAvailableDeliveries(page = 1, limit = 10, filters = {}) {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
-    if (filters.status) params.append('status', filters.status);
-    return await this.request(`/deliveries/available?${params.toString()}`);
-  }
-
-  /**
-   * Alias pour mes livraisons (pagination)
-   */
-  async getMyDeliveries(page = 1, limit = 10, filters = {}) {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
-    if (filters.status) params.append('status', filters.status);
-    // Backend route: GET /deliveries (protégé, filtre par livreur côté serveur)
-    return await this.request(`/deliveries?${params.toString()}`);
-  }
-
-  /**
-   * Alias pour l'historique des livraisons (pagination)
-   */
-  async getDeliveryHistory(page = 1, limit = 10, filters = {}) {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString()
-    });
-    if (filters.status) params.append('status', filters.status);
-    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
-    if (filters.dateTo) params.append('dateTo', filters.dateTo);
-    return await this.request(`/deliveries/my/history?${params.toString()}`);
-  }
-
+  
   /**
    * Changer le statut d'un utilisateur (alias)
    */
@@ -841,6 +1083,41 @@ class ApiService {
     return await this.changeUserRole(userId, role);
   }
 
+  /**
+   * Supprimer un utilisateur (admin uniquement)
+   */
+  async deleteUser(userId) {
+    return await this.request(`/admin/users/${userId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  /**
+   * Bloquer un utilisateur (admin uniquement)
+   */
+  async blockUser(userId, reason = '') {
+    return await this.request(`/admin/users/${userId}/block`, {
+      method: 'PATCH',
+      data: { reason }
+    });
+  }
+
+  /**
+   * Débloquer un utilisateur (admin uniquement)
+   */
+  async unblockUser(userId) {
+    return await this.request(`/admin/users/${userId}/unblock`, {
+      method: 'PATCH'
+    });
+  }
+
+  /**
+   * Vérifier si un utilisateur est bloqué (helper)
+   */
+  async isUserBlocked(userId) {
+    return await this.request(`/admin/users/${userId}/status`);
+  }
+
   // =====================
   // UTILITAIRES
   // =====================
@@ -850,6 +1127,88 @@ class ApiService {
    */
   async healthCheck() {
     return await this.request('/health');
+  }
+
+  // =====================
+  // GESTION DU PROFIL
+  // =====================
+
+  /**
+   * Obtenir le profil de l'utilisateur connecté
+   */
+  async getMyProfile() {
+    return await this.request('/users/me');
+  }
+
+  /**
+   * Obtenir le profil d'un utilisateur spécifique
+   */
+  async getUserProfile(userId) {
+    return await this.request(`/users/profile/${userId}`);
+  }
+
+  /**
+   * Mettre à jour le profil de l'utilisateur
+   */
+  async updateProfile(profileData) {
+    // Si une photo est incluse, utiliser FormData
+    if (profileData.profilePicture instanceof File || profileData.profilePicture instanceof Blob) {
+      const formData = new FormData();
+      
+      // Ajouter tous les champs
+      Object.keys(profileData).forEach(key => {
+        if (key === 'profilePicture') {
+          formData.append('profilePicture', profileData[key]);
+        } else if (typeof profileData[key] === 'object') {
+          formData.append(key, JSON.stringify(profileData[key]));
+        } else {
+          formData.append(key, profileData[key]);
+        }
+      });
+
+      return await this.request('/users/profile', {
+        method: 'PUT',
+        headers: {
+          // Ne pas définir Content-Type pour multipart/form-data
+        },
+        data: formData
+      });
+    } else {
+      // Utilisation JSON pour les données normales
+      return await this.request('/users/profile', {
+        method: 'PUT',
+        data: profileData
+      });
+    }
+  }
+
+  /**
+   * Changer le mot de passe
+   */
+  async changePassword(passwordData) {
+    return await this.request('/users/change-password', {
+      method: 'PUT',
+      data: passwordData
+    });
+  }
+
+  /**
+   * Mettre à jour les préférences
+   */
+  async updatePreferences(preferences) {
+    return await this.request('/users/preferences', {
+      method: 'PUT',
+      data: preferences
+    });
+  }
+
+  /**
+   * Supprimer son compte
+   */
+  async deleteAccount() {
+    return await this.request('/users/account', {
+      method: 'DELETE'
+    });
   }
 }
 

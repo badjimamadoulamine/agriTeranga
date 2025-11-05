@@ -68,72 +68,9 @@ exports.createOrder = async (req, res) => {
 
     await order.populate('items.product items.producer consumer');
 
-    // Si livraison à domicile, tenter d'assigner automatiquement un livreur disponible
+    // Si livraison à domicile, ne pas auto-assigner de livreur
     if (deliveryInfo && deliveryInfo.method === 'home-delivery') {
-      try {
-        const addr = deliveryInfo.address || {};
-        const city = addr.city || '';
-        const region = addr.region || '';
-
-        // Chercher des livreurs disponibles dans la même ville/zone si possible
-        let candidate = await User.findOne({
-          role: 'livreur',
-          isActive: true,
-          'livreurInfo.isAvailable': true,
-          ...(city ? { 'livreurInfo.deliveryZone': city } : {})
-        }).sort({ lastLogin: -1 });
-
-        // Fallback: essayer par région
-        if (!candidate && region) {
-          candidate = await User.findOne({
-            role: 'livreur',
-            isActive: true,
-            'livreurInfo.isAvailable': true,
-            'livreurInfo.deliveryZone': region
-          }).sort({ lastLogin: -1 });
-        }
-
-        // Fallback global: n'importe quel livreur disponible
-        if (!candidate) {
-          candidate = await User.findOne({
-            role: 'livreur',
-            isActive: true,
-            'livreurInfo.isAvailable': true
-          }).sort({ lastLogin: -1 });
-        }
-
-        if (candidate) {
-          // Créer une livraison liée
-          const delivery = await Delivery.create({
-            order: order._id,
-            deliverer: candidate._id,
-            status: 'assigned',
-            pickupLocation: {
-              address: 'À définir',
-              coordinates: { lat: null, lng: null }
-            },
-            deliveryLocation: {
-              address: [addr.street, addr.city, addr.region].filter(Boolean).join(', '),
-              coordinates: addr.coordinates || undefined
-            },
-            estimatedTime: new Date(Date.now() + 2 * 60 * 60 * 1000)
-          });
-
-          // Mettre à jour la commande avec le livreur
-          order.deliveryInfo.deliverer = candidate._id;
-          order.status = 'shipped';
-          order.statusHistory.push({
-            status: 'shipped',
-            updatedBy: req.user.id,
-            timestamp: Date.now()
-          });
-          await order.save();
-          await order.populate('deliveryInfo.deliverer');
-        }
-      } catch (assignErr) {
-        // Ne pas bloquer la création de commande si l'assignation échoue
-        console.error('Auto-assign delivery failed:', assignErr);
-      }
+      // Laisser la commande non assignée pour apparaître dans "Livraisons disponibles"
     }
 
     res.status(201).json({
@@ -192,7 +129,7 @@ exports.getOrder = async (req, res) => {
       .populate('consumer', 'firstName lastName email phone')
       .populate('items.product')
       .populate('items.producer', 'firstName lastName phone')
-      .populate('deliveryInfo.deliverer', 'firstName lastName phone')
+      .populate('deliveryInfo.deliverer', 'firstName lastName phone profilePicture')
       .populate('statusHistory.updatedBy', 'firstName lastName');
 
     if (!order) {
@@ -215,10 +152,32 @@ exports.getOrder = async (req, res) => {
       });
     }
 
+    // Enrichir la réponse avec un objet livreur en haut de l'order pour simplifier le front
+    const orderObj = order.toObject({ virtuals: true });
+    if (orderObj.deliveryInfo && orderObj.deliveryInfo.deliverer) {
+      const d = orderObj.deliveryInfo.deliverer || {};
+      const firstName = d.firstName || '';
+      const lastName = d.lastName || '';
+      const name = [firstName, lastName].filter(Boolean).join(' ');
+      const phone = d.phone || '';
+      const avatar = d.profilePicture || d.avatarUrl || d.photoUrl || d.photo || '';
+      orderObj.deliverer = {
+        id: d._id || undefined,
+        firstName,
+        lastName,
+        name,
+        phone,
+        avatarUrl: avatar,
+        photoUrl: avatar
+      };
+    } else {
+      orderObj.deliverer = null;
+    }
+
     res.status(200).json({
       status: 'success',
       data: {
-        order
+        order: orderObj
       }
     });
   } catch (error) {
@@ -312,6 +271,16 @@ exports.cancelOrder = async (req, res) => {
     }
 
     await order.save();
+
+    // Si une livraison existe déjà pour cette commande, la marquer comme échouée côté livreur
+    try {
+      const existingDelivery = await Delivery.findOne({ order: order._id });
+      if (existingDelivery) {
+        existingDelivery.status = 'failed';
+        existingDelivery.notes = (existingDelivery.notes ? existingDelivery.notes + ' ' : '') + '[Auto] Annulée par le client';
+        await existingDelivery.save();
+      }
+    } catch (_) {}
 
     res.status(200).json({
       status: 'success',
@@ -463,6 +432,229 @@ exports.getTransactionHistory = async (req, res) => {
       stats,
       data: {
         orders
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Créer une commande
+exports.createOrder = async (req, res) => {
+  try {
+    const { items, paymentMethod, deliveryInfo, notes } = req.body;
+
+    // Calculer le montant total
+    let totalAmount = 0;
+    const orderItems = [];
+
+    for (const item of items) {
+      const product = await Product.findById(item.product);
+      
+      if (!product) {
+        return res.status(404).json({
+          status: 'error',
+          message: `Produit ${item.product} non trouvé`
+        });
+      }
+
+      if (product.stock < item.quantity) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Stock insuffisant pour ${product.name}`
+        });
+      }
+
+      const subtotal = product.price * item.quantity;
+      totalAmount += subtotal;
+
+      orderItems.push({
+        product: product._id,
+        producer: product.producer,
+        quantity: item.quantity,
+        price: product.price,
+        subtotal
+      });
+
+      // Déduire du stock
+      product.stock -= item.quantity;
+      await product.save();
+    }
+
+    const order = await Order.create({
+      consumer: req.user.id,
+      items: orderItems,
+      totalAmount,
+      paymentMethod,
+      deliveryInfo,
+      notes,
+      statusHistory: [{
+        status: 'pending',
+        updatedBy: req.user.id,
+        timestamp: Date.now()
+      }]
+    });
+
+    // Vider le panier
+    await Cart.findOneAndUpdate(
+      { user: req.user.id },
+      { items: [], totalAmount: 0 }
+    );
+
+    // Ne pas auto-assigner de livreur pour les livraisons à domicile afin d'apparaître dans "Livraisons disponibles"
+
+    await order.populate('items.product items.producer consumer');
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        order
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Obtenir mes commandes (consommateur)
+exports.getMyOrders = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    const query = { consumer: req.user.id };
+
+    if (status) query.status = status;
+
+    const skip = (page - 1) * limit;
+
+    const orders = await Order.find(query)
+      .populate('items.product items.producer')
+      .populate('deliveryInfo.deliverer', 'firstName lastName phone')
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Order.countDocuments(query);
+
+    res.status(200).json({
+      status: 'success',
+      results: orders.length,
+      total,
+      data: {
+        orders
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Obtenir une commande par ID
+exports.getOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('consumer', 'firstName lastName email phone')
+      .populate('items.product')
+      .populate('items.producer', 'firstName lastName phone')
+      .populate('deliveryInfo.deliverer', 'firstName lastName phone profilePicture')
+      .populate('statusHistory.updatedBy', 'firstName lastName');
+
+    if (!order) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Commande non trouvée'
+      });
+    }
+
+    // Vérifier les permissions - tous les acteurs impliqués peuvent voir
+    const isConsumer = order.consumer._id.toString() === req.user.id;
+    const isProducer = order.items.some(item => item.producer._id.toString() === req.user.id);
+    const isDeliverer = order.deliveryInfo?.deliverer?._id?.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isConsumer && !isProducer && !isDeliverer && !isAdmin) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Accès non autorisé'
+      });
+    }
+
+    // Enrichir avec un objet livreur au niveau racine
+    const orderObj = order.toObject({ virtuals: true });
+    if (orderObj.deliveryInfo && orderObj.deliveryInfo.deliverer) {
+      const d = orderObj.deliveryInfo.deliverer || {};
+      const firstName = d.firstName || '';
+      const lastName = d.lastName || '';
+      const name = [firstName, lastName].filter(Boolean).join(' ');
+      const phone = d.phone || '';
+      const avatar = d.profilePicture || d.avatarUrl || d.photoUrl || d.photo || '';
+      orderObj.deliverer = {
+        id: d._id || undefined,
+        firstName,
+        lastName,
+        name,
+        phone,
+        avatarUrl: avatar,
+        photoUrl: avatar
+      };
+    } else {
+      orderObj.deliverer = null;
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        order: orderObj
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Mettre à jour le statut
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Commande non trouvée'
+      });
+    }
+
+    order.status = status;
+    order.statusHistory.push({
+      status,
+      updatedBy: req.user.id,
+      timestamp: Date.now()
+    });
+
+    if (status === 'delivered') {
+      order.deliveryInfo.actualDeliveryDate = new Date();
+    }
+
+    await order.save();
+
+    await order.populate('consumer items.product items.producer deliveryInfo.deliverer statusHistory.updatedBy');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        order
       }
     });
   } catch (error) {

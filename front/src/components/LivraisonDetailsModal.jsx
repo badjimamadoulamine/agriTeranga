@@ -1,98 +1,35 @@
 import React from 'react';
 import { X, Package, Truck, Clock, MapPin, User, Phone, Mail } from 'lucide-react';
+import { getProfilePictureUrl } from '../utils/imageUtils';
+import livreurDefault from '../assets/bagage.png';
+
 
 const LivraisonDetailsModal = ({ isOpen, onClose, onCancel, commandeDetails }) => {
   if (!isOpen) return null;
 
-  // Données d'exemple pour la commande (fallback)
-  const details = {
-    numeroCommande: '#AT-12345',
-    dateCommande: '28 Octobre 2025',
-    dateLivraison: '25 Décembre 2025',
-    statut: 'En route',
-    client: {
-      nom: 'Jean Dupont',
-      email: 'jean.dupont@email.com',
-      telephone: '+221 77 123 45 67',
-      adresse: '123 Rue de Dakar, Dakar, Sénégal'
-    },
-    livreur: {
-      nom: 'Moussa Diallo',
-      telephone: '+221 77 987 65 43',
-      photo: '/src/assets/livreur.jpg'
-    },
-    articles: [
-      {
-        id: 1,
-        nom: 'Avocat Premium',
-        quantite: 3,
-        prix: 2500,
-        image: '/src/assets/product.jpg'
-      },
-      {
-        id: 2,
-        nom: 'Tomate Bio',
-        quantite: 2,
-        prix: 1200,
-        image: '/src/assets/product.jpg'
-      },
-      {
-        id: 3,
-        nom: 'Carotte Fraîche',
-        quantite: 5,
-        prix: 800,
-        image: '/src/assets/product.jpg'
-      }
-    ],
-    recapitulatif: {
-      sousTotal: 11600,
-      fraisLivraison: 1500,
-      total: 13100
-    },
-    suivi: [
-      {
-        statut: 'Commande confirmée',
-        date: '28 Oct 2025, 09:00',
-        description: 'Votre commande a été confirmée par le vendeur',
-        completed: true
-      },
-      {
-        statut: 'En préparation',
-        date: '28 Oct 2025, 10:30',
-        description: 'Votre commande est en cours de préparation',
-        completed: true
-      },
-      {
-        statut: 'En route',
-        date: '28 Oct 2025, 14:15',
-        description: 'Votre commande est en cours de livraison',
-        completed: true
-      },
-      {
-        statut: 'Livré',
-        date: 'Estimé: 25 Déc 2025',
-        description: 'Votre commande sera livrée à destination',
-        completed: false
-      }
-    ]
+  // Utiliser les données passées via props, avec fallbacks neutres
+  const articles = Array.isArray(commandeDetails?.articles) ? commandeDetails.articles : [];
+  const recapitulatif = {
+    sousTotal: Number(commandeDetails?.recapitulatif?.sousTotal || 0),
+    fraisLivraison: Number(commandeDetails?.recapitulatif?.fraisLivraison || 0),
+    total: Number(commandeDetails?.recapitulatif?.total || ((commandeDetails?.recapitulatif?.sousTotal || 0) + (commandeDetails?.recapitulatif?.fraisLivraison || 0)))
   };
-
-  // Utiliser les données passées via props si disponibles, sinon fallback exemples
-  const articles = Array.isArray(commandeDetails?.articles) && commandeDetails.articles.length > 0
-    ? commandeDetails.articles
-    : details.articles;
-  const recapitulatif = commandeDetails?.recapitulatif || details.recapitulatif;
   const meta = {
-    numeroCommande: commandeDetails?.numeroCommande || details.numeroCommande,
-    dateCommande: commandeDetails?.dateCommande || details.dateCommande,
-    dateLivraison: commandeDetails?.dateLivraison || details.dateLivraison,
-    statut: commandeDetails?.statut || details.statut,
+    numeroCommande: commandeDetails?.numeroCommande || '#AT-XXXXXX',
+    dateCommande: commandeDetails?.dateCommande || '—',
+    dateLivraison: commandeDetails?.dateLivraison || '—',
+    statut: commandeDetails?.statut || 'En attente',
   };
   const client = {
-    nom: commandeDetails?.client?.nom || details.client.nom,
-    email: commandeDetails?.client?.email || details.client.email,
-    telephone: commandeDetails?.client?.telephone || details.client.telephone,
-    adresse: commandeDetails?.client?.adresse || details.client.adresse,
+    nom: commandeDetails?.client?.nom || 'Client',
+    email: commandeDetails?.client?.email || '',
+    telephone: commandeDetails?.client?.telephone || '',
+    adresse: commandeDetails?.client?.adresse || 'Adresse non renseignée',
+  };
+  const livreur = {
+    nom: commandeDetails?.livreur?.nom || 'Non assigné',
+    telephone: commandeDetails?.livreur?.telephone || '',
+    photo: commandeDetails?.livreur?.photo || '/src/assets/livreur.jpg',
   };
 
   return (
@@ -169,16 +106,20 @@ const LivraisonDetailsModal = ({ isOpen, onClose, onCancel, commandeDetails }) =
                 </h3>
                 <div className="flex items-center space-x-3">
                   <img
-                    src={details.livreur.photo}
-                    alt={details.livreur.nom}
+                    src={getProfilePictureUrl(livreur.photo) || livreurDefault}
+                    alt={livreur.nom || 'Livreur'}
                     className="w-12 h-12 rounded-full object-cover"
                   />
                   <div>
-                    <p className="font-medium text-blue-900">{details.livreur.nom}</p>
-                    <div className="flex items-center text-sm text-blue-700">
-                      <Phone className="mr-1" size={14} />
-                      {details.livreur.telephone}
-                    </div>
+                    <p className="font-medium text-blue-900">{livreur.nom || 'Non assigné'}</p>
+                    {livreur.telephone ? (
+                      <a href={`tel:${livreur.telephone}`} className="flex items-center text-sm text-blue-700 hover:underline">
+                        <Phone className="mr-1" size={14} />
+                        {livreur.telephone}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-gray-600">Numéro non disponible</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -251,9 +192,22 @@ const LivraisonDetailsModal = ({ isOpen, onClose, onCancel, commandeDetails }) =
                 J'annule ma commande
               </button>
             )}
-            <button className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              Contacter le livreur
-            </button>
+            {livreur?.telephone ? (
+              <a
+                href={`tel:${livreur.telephone}`}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
+              >
+                Contacter le livreur
+              </a>
+            ) : (
+              <button
+                className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg cursor-not-allowed"
+                title="Aucun numéro de livreur disponible"
+                disabled
+              >
+                Contacter le livreur
+              </button>
+            )}
           </div>
         </div>
       </div>

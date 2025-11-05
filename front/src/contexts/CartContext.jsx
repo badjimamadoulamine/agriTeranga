@@ -16,6 +16,8 @@ export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [cartCount, setCartCount] = useState(0);
   const { user, isAuthenticated } = useAuth();
+  const [hydrated, setHydrated] = useState(false);
+  const [authTick, setAuthTick] = useState(0);
 
   const mapServerCartToClient = (cart) => {
     if (!cart || !Array.isArray(cart.items)) return [];
@@ -35,7 +37,7 @@ export const CartProvider = ({ children }) => {
     });
   };
 
-  // Charger le panier: depuis l'API si authentifié (avec fusion locale->serveur), sinon localStorage
+  // Charger le panier: depuis l'API si authentifié (avec fusion locale->serveur contrôlée), sinon localStorage
   useEffect(() => {
     const load = async () => {
       if (isAuthenticated) {
@@ -46,39 +48,52 @@ export const CartProvider = ({ children }) => {
           const cart = (payload.data && (payload.data.cart || payload.data)) || payload.cart;
           let items = mapServerCartToClient(cart);
 
-          // 2) Fusionner le panier local (si présent) vers le serveur
-          const savedLocal = localStorage.getItem('cart');
-          if (savedLocal) {
-            try {
-              const localItems = JSON.parse(savedLocal);
-              if (Array.isArray(localItems) && localItems.length > 0) {
-                for (const li of localItems) {
-                  const pid = li.id || li.productId || li._id;
-                  const qty = Math.max(1, Number(li.quantity) || 1);
-                  if (pid) {
-                    try {
-                      await apiService.addToCart(pid, qty);
-                    } catch {}
+          // 2) Fusion contrôlée du panier local -> serveur
+          //    Si l'utilisateur connecté est différent du dernier utilisateur, ne pas fusionner (évite d'injecter un panier invité obsolète)
+          const lastUserId = localStorage.getItem('cart_last_user_id');
+          const currentUserId = user?.id || user?._id || user?.userId;
+          const isSameUser = lastUserId && currentUserId && lastUserId === String(currentUserId);
+
+          if (isSameUser) {
+            const savedLocal = localStorage.getItem('cart');
+            if (savedLocal) {
+              try {
+                const localItems = JSON.parse(savedLocal);
+                if (Array.isArray(localItems) && localItems.length > 0) {
+                  // N'ajouter que les produits absents du panier serveur
+                  const serverIds = new Set((items || []).map(it => it.id));
+                  for (const li of localItems) {
+                    const pid = li.id || li.productId || li._id;
+                    if (!pid || serverIds.has(pid)) continue;
+                    const qty = Math.max(1, Number(li.quantity) || 1);
+                    try { await apiService.addToCart(pid, qty); } catch {}
                   }
+                  // Recharger le panier serveur après fusion
+                  const resp2 = await apiService.getCart();
+                  const payload2 = resp2 || {};
+                  const cart2 = (payload2.data && (payload2.data.cart || payload2.data)) || payload2.cart;
+                  items = mapServerCartToClient(cart2);
                 }
-                // Recharger le panier serveur après fusion
-                const resp2 = await apiService.getCart();
-                const payload2 = resp2 || {};
-                const cart2 = (payload2.data && (payload2.data.cart || payload2.data)) || payload2.cart;
-                items = mapServerCartToClient(cart2);
-                // Nettoyer le cache local pour éviter les doublons à l'avenir
-                localStorage.removeItem('cart');
-              }
-            } catch {}
+              } catch {}
+            }
+          } else {
+            // Nouvel utilisateur connecté: ne pas fusionner, réinitialiser le panier local pour éviter la pollution
+            localStorage.removeItem('cart');
           }
 
           setCartItems(items);
+          // Écrire aussi en local pour persister après déconnexion
+          localStorage.setItem('cart', JSON.stringify(items));
+          // Mémoriser l'utilisateur courant pour les prochains démarrages/reconnexions
+          if (currentUserId) localStorage.setItem('cart_last_user_id', String(currentUserId));
+          setHydrated(true);
         } catch (e) {
           // fallback local si erreur API
           const saved = localStorage.getItem('cart');
           if (saved) {
             try { setCartItems(JSON.parse(saved)); } catch { setCartItems([]); }
           }
+          setHydrated(true);
         }
       } else {
         const savedCart = localStorage.getItem('cart');
@@ -92,18 +107,32 @@ export const CartProvider = ({ children }) => {
         } else {
           setCartItems([]);
         }
+        // l'utilisateur n'est pas authentifié → pas de last_user
+        localStorage.removeItem('cart_last_user_id');
+        setHydrated(true);
       }
     };
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, authTick]);
+
+  // Écouter les changements d'auth (login/logout) déclenchés globalement
+  useEffect(() => {
+    const handler = () => setAuthTick((t) => t + 1);
+    try { window.addEventListener('auth-changed', handler); } catch {}
+    return () => {
+      try { window.removeEventListener('auth-changed', handler); } catch {}
+    };
+  }, []);
 
   // Mettre à jour le cartCount et sauvegarder à chaque changement de cartItems
   useEffect(() => {
     const totalCount = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
     setCartCount(totalCount);
-    localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+    if (hydrated) {
+      localStorage.setItem('cart', JSON.stringify(cartItems));
+    }
+  }, [cartItems, hydrated]);
 
   const addToCart = async (product) => {
     if (isAuthenticated) {

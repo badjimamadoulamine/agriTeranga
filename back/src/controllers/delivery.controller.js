@@ -1,5 +1,6 @@
 const Delivery = require('../models/Delivery');
 const Order = require('../models/Order');
+const User = require('../models/User');
 
 // Obtenir toutes les livraisons (pour livreur)
 exports.getAllDeliveries = async (req, res) => {
@@ -48,14 +49,31 @@ exports.getAllDeliveries = async (req, res) => {
 // Obtenir les livraisons disponibles
 exports.getAvailableDeliveries = async (req, res) => {
   try {
-    // Commandes prêtes à être livrées sans livreur assigné
-    const orders = await Order.find({
-      status: 'processing',
+    // Récupérer la zone du livreur courant
+    const currentUser = await User.findById(req.user.id).select('role livreurInfo');
+    if (!currentUser || currentUser.role !== 'livreur') {
+      return res.status(403).json({ status: 'error', message: 'Accès refusé' });
+    }
+
+    const zone = currentUser.livreurInfo?.deliveryZone;
+
+    // Base filter: commandes prêtes à livrer, non assignées
+    const baseFilter = {
+      status: { $in: ['pending', 'confirmed', 'processing'] },
       'deliveryInfo.method': 'home-delivery',
-      'deliveryInfo.deliverer': { $exists: false }
-    })
+      $or: [
+        { 'deliveryInfo.deliverer': { $exists: false } },
+        { 'deliveryInfo.deliverer': null }
+      ]
+    };
+
+    // Ne pas restreindre par zone: afficher toutes les commandes éligibles
+    const filter = baseFilter;
+
+    const orders = await Order.find(filter)
       .populate('consumer', 'firstName lastName phone')
-      .populate('items.product', 'name');
+      .populate('items.product', 'name')
+      .sort('-createdAt');
 
     res.status(200).json({
       status: 'success',
@@ -141,11 +159,11 @@ exports.acceptDelivery = async (req, res) => {
       estimatedTime: new Date(Date.now() + 2 * 60 * 60 * 1000) // 2 heures
     });
 
-    // Mettre à jour la commande
+    // Mettre à jour la commande: En préparation côté consommateur
     order.deliveryInfo.deliverer = req.user.id;
-    order.status = 'shipped';
+    order.status = 'processing';
     order.statusHistory.push({
-      status: 'shipped',
+      status: 'processing',
       updatedBy: req.user.id
     });
     await order.save();
@@ -169,6 +187,12 @@ exports.updateDeliveryStatus = async (req, res) => {
   try {
     const { status, notes } = req.body;
 
+    // Autoriser uniquement: en préparation (handled on accept), en route (in-transit), livré (delivered)
+    const allowed = ['in-transit', 'delivered'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ status: 'error', message: 'Statut invalide' });
+    }
+
     const delivery = await Delivery.findById(req.params.id);
 
     if (!delivery) {
@@ -189,8 +213,18 @@ exports.updateDeliveryStatus = async (req, res) => {
     if (notes) delivery.notes = notes;
     await delivery.save();
 
-    // Mettre à jour la commande si nécessaire
-    if (status === 'delivered') {
+    // Mettre à jour la commande en cohérence
+    if (status === 'in-transit') {
+      await Order.findByIdAndUpdate(delivery.order, {
+        status: 'shipped',
+        $push: {
+          statusHistory: {
+            status: 'shipped',
+            updatedBy: req.user.id
+          }
+        }
+      });
+    } else if (status === 'delivered') {
       await Order.findByIdAndUpdate(delivery.order, {
         status: 'delivered',
         'deliveryInfo.actualDeliveryDate': new Date(),
@@ -282,7 +316,7 @@ exports.getMyDeliveries = async (req, res) => {
     const stats = {
       total: deliveries.length,
       completed: deliveries.filter(d => d.status === 'delivered').length,
-      inProgress: deliveries.filter(d => ['assigned', 'picked-up', 'in-transit'].includes(d.status)).length,
+      inProgress: deliveries.filter(d => ['assigned', 'in-transit'].includes(d.status)).length,
       failed: deliveries.filter(d => d.status === 'failed').length
     };
 

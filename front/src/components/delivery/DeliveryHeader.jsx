@@ -1,8 +1,37 @@
+  const handleUpdateProfile = async (profileData) => {
+    try {
+      const fn = typeof apiService.updateProfile === 'function' ? apiService.updateProfile : apiService.updateMyProfile;
+      const res = await fn.call(apiService, profileData);
+      const ok = res && res.status === 'success';
+      if (ok) setAvatarVersion(Date.now());
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const handleChangePassword = async (data) => {
+    try {
+      const fn = typeof apiService.changePassword === 'function' ? apiService.changePassword : apiService.changeMyPassword;
+      const res = await fn.call(apiService, data);
+      return res && res.status === 'success';
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const handleRefreshProfile = async () => {
+    try {
+      // Optionally refetch profile; here we just bump avatar to refresh picture URL
+      setAvatarVersion(Date.now());
+    } catch {}
+  };
 import React, { useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getProfilePictureUrl } from '../../utils/imageUtils';
-import ConsumerProfileModal from '../consumer/ConsumerProfileModal';
+import ProfileModal from '../ProfileModal';
+import apiService from '../../services/apiService';
 
 const DeliveryHeader = ({ onLogout }) => {
   const { user, logout } = useAuth();
@@ -83,10 +112,13 @@ const DeliveryHeader = ({ onLogout }) => {
       )}
 
       {showProfileModal && (
-        <ConsumerProfileModal
+        <ProfileModal
           isOpen={showProfileModal}
           onClose={() => setShowProfileModal(false)}
-          onUpdated={() => { setAvatarVersion(Date.now()); setShowProfileModal(false); }}
+          profile={user}
+          onUpdateProfile={handleUpdateProfile}
+          onChangePassword={handleChangePassword}
+          onRefreshProfile={handleRefreshProfile}
         />
       )}
     </header>

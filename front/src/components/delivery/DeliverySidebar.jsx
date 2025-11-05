@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Truck, Clock } from 'lucide-react';
+import { LayoutDashboard, Truck, Clock, TrendingUp } from 'lucide-react';
 import logo from "../../assets/logo.png"
 
 const DeliverySidebar = () => {
@@ -20,6 +20,11 @@ const DeliverySidebar = () => {
       path: '/delivery/history',
       label: 'Historique',
       icon: Clock
+    },
+    {
+      path: '/delivery/statistics',
+      label: 'Statistiques',
+      icon: TrendingUp
     }
   ];
 

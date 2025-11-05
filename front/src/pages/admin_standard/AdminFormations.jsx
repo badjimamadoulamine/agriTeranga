@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { 
   GraduationCap, 
   Plus, 
@@ -20,8 +21,14 @@ import {
   Pause
 } from 'lucide-react'
 import { useFormations } from '../../hooks/useApi'
+import AdminSidebar from '../../components/admin/AdminSidebar'
+import AdminHeader from '../../components/admin/AdminHeader'
+import SuperAdminSidebar from '../../components/super_admin/SuperAdminSidebar'
+import SuperAdminHeader from '../../components/super_admin/SuperAdminHeader'
+import AdminProfileModal from '../../components/admin/AdminProfileModal'
 
 const AdminFormations = () => {
+  const location = useLocation()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -32,6 +39,11 @@ const AdminFormations = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedFormation, setSelectedFormation] = useState(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+
+  const handleProfileUpdated = () => {
+    console.log('Profil mis à jour')
+  }
   const [newFormation, setNewFormation] = useState({
     title: '',
     description: '',
@@ -40,8 +52,28 @@ const AdminFormations = () => {
     price: '',
     maxParticipants: '',
     instructor: '',
-    startDate: ''
+    startDate: '',
+    isPublished: true
   })
+
+  // Détecter si on est dans un contexte Super Admin
+  const isSuperAdminContext = location.pathname.startsWith('/super-admin/')
+  
+  // Déterminer quel stockage utiliser selon le contexte
+  const user = React.useMemo(() => {
+    try {
+      let storageKey
+      if (isSuperAdminContext) {
+        // Essayer d'abord le stockage super admin, puis fallback sur admin
+        storageKey = localStorage.getItem('superAdminUser') || localStorage.getItem('adminDashboardUser')
+      } else {
+        storageKey = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
+      }
+      return storageKey ? JSON.parse(storageKey) : null
+    } catch {
+      return null
+    }
+  }, [isSuperAdminContext])
 
   // Hook pour récupérer les formations
   const { 
@@ -54,7 +86,9 @@ const AdminFormations = () => {
     togglePublish,
     createFormation,
     updateFormation,
-    deleteFormation
+    deleteFormation,
+    categoriesLoading,
+    categoriesError
   } = useFormations({
     status: statusFilter === 'all' ? undefined : statusFilter,
     category: categoryFilter === 'all' ? undefined : categoryFilter,
@@ -92,7 +126,8 @@ const AdminFormations = () => {
         ...newFormation,
         maxParticipants: parseInt(newFormation.maxParticipants),
         price: parseFloat(newFormation.price),
-        duration: parseInt(newFormation.duration)
+        duration: parseInt(newFormation.duration),
+        isPublished: newFormation.isPublished
       })
       setShowCreateModal(false)
       setNewFormation({
@@ -103,7 +138,8 @@ const AdminFormations = () => {
         price: '',
         maxParticipants: '',
         instructor: '',
-        startDate: ''
+        startDate: '',
+        isPublished: true
       })
     } catch (error) {
       alert(`Erreur lors de la création: ${error.message}`)
@@ -203,18 +239,63 @@ const AdminFormations = () => {
   // categories are now provided by the useFormations hook (fetched from backend)
 
   if (loading) {
+    const SidebarComponent = isSuperAdminContext ? SuperAdminSidebar : AdminSidebar
+    const HeaderComponent = isSuperAdminContext ? SuperAdminHeader : AdminHeader
+    
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-          <p className="text-gray-600">Chargement des formations...</p>
+      <div className="flex h-screen bg-[#F8FAF8]">
+        <SidebarComponent user={user} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <HeaderComponent
+            user={user}
+            onOpenProfile={() => (window.location.href = isSuperAdminContext ? '/super-admin/settings' : '/admin/settings')}
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = isSuperAdminContext ? '/login' : '/admin/login' 
+            }}
+          />
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-gray-600">Chargement des formations...</p>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-screen bg-[#F8FAF8]">
+      {isSuperAdminContext ? (
+        <SuperAdminSidebar user={user} />
+      ) : (
+        <AdminSidebar user={user} />
+      )}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {isSuperAdminContext ? (
+          <SuperAdminHeader
+            user={user}
+            onOpenProfile={() => setShowProfileModal(true)}
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = '/login' 
+            }}
+          />
+        ) : (
+          <AdminHeader
+            user={user}
+            onOpenProfile={() => setShowProfileModal(true)}
+            onLogout={() => { 
+              localStorage.clear(); 
+              window.location.href = '/admin/login' 
+            }}
+          />
+        )}
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -330,19 +411,37 @@ const AdminFormations = () => {
             <option value="published">Publiées</option>
             <option value="draft">Brouillons</option>
           </select>
-          <select 
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={categoryFilter}
-            onChange={(e) => {
-              setCategoryFilter(e.target.value)
-              setCurrentPage(1)
-            }}
-          >
-            <option value="all">Toutes les catégories</option>
-            {Array.isArray(categories) && categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select 
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              disabled={categoriesLoading}
+            >
+              <option value="all">Toutes les catégories</option>
+              {categoriesLoading ? (
+                <option value="" disabled>Chargement...</option>
+              ) : categoriesError ? (
+                <option value="" disabled>Erreur de chargement</option>
+              ) : (
+                Array.isArray(categories) && categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))
+              )}
+            </select>
+            {categoriesError && (
+              <button
+                onClick={refetch}
+                className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Réessayer"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <select 
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={itemsPerPage}
@@ -380,10 +479,34 @@ const AdminFormations = () => {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Catégorie</label>
-                  <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }} className="w-full px-3 py-2 border rounded">
-                    <option value="all">Toutes les catégories</option>
-                    {Array.isArray(categories) && categories.map(category => (<option key={category} value={category}>{category}</option>))}
-                  </select>
+                  <div className="relative">
+                    <select 
+                      value={categoryFilter} 
+                      onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }} 
+                      className="w-full px-3 py-2 border rounded pr-8" 
+                      disabled={categoriesLoading}
+                    >
+                      <option value="all">Toutes les catégories</option>
+                      {categoriesLoading ? (
+                        <option value="" disabled>Chargement...</option>
+                      ) : categoriesError ? (
+                        <option value="" disabled>Erreur de chargement</option>
+                      ) : (
+                        Array.isArray(categories) && categories.map(category => (
+                          <option key={category} value={category}>{category}</option>
+                        ))
+                      )}
+                    </select>
+                    {categoriesError && (
+                      <button
+                        onClick={refetch}
+                        className="absolute right-6 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        title="Réessayer"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Résultats par page</label>
@@ -591,6 +714,23 @@ const AdminFormations = () => {
                     onChange={(e) => setNewFormation({...newFormation, startDate: e.target.value})}
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isPublished"
+                      checked={newFormation.isPublished}
+                      onChange={(e) => setNewFormation({...newFormation, isPublished: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
+                      Publiée (visible par les producteurs)
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Les formations publiées apparaîtront dans le tableau de bord des producteurs
+                  </p>
+                </div>
               </div>
               <div className="flex items-center justify-end space-x-3 mt-6">
                 <button
@@ -735,6 +875,17 @@ const AdminFormations = () => {
           </div>
         </div>
       )}
+          </div>
+        </main>
+      </div>
+
+      {/* Modal de profil */}
+      <AdminProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onUpdated={handleProfileUpdated}
+      />
     </div>
   )
 }

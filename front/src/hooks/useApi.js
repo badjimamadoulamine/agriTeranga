@@ -1,6 +1,6 @@
 // Hook personnalisé pour gérer les données API
 import { useState, useEffect, useCallback } from 'react';
-import apiService from '../services/api';
+import apiService from '../services/apiService';
 
 export const useApi = (apiFunction, dependencies = []) => {
   const [data, setData] = useState(null);
@@ -144,6 +144,36 @@ export const useUsers = (params = {}) => {
     }
   }, [fetchUsers]);
 
+  const deleteUser = useCallback(async (userId) => {
+    try {
+      await apiService.deleteUser(userId);
+      // Rafraîchir la liste après suppression
+      fetchUsers();
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  }, [fetchUsers]);
+
+  const blockUser = useCallback(async (userId, reason = '') => {
+    try {
+      await apiService.blockUser(userId, reason);
+      // Rafraîchir la liste après blocage
+      fetchUsers();
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  }, [fetchUsers]);
+
+  const unblockUser = useCallback(async (userId) => {
+    try {
+      await apiService.unblockUser(userId);
+      // Rafraîchir la liste après déblocage
+      fetchUsers();
+    } catch (err) {
+      throw new Error(err.message);
+    }
+  }, [fetchUsers]);
+
   // Appeler fetchUsers lorsque les paramètres changent (comparaison profonde via JSON)
   useEffect(() => {
     fetchUsers();
@@ -157,7 +187,10 @@ export const useUsers = (params = {}) => {
     error, 
     refetch: fetchUsers,
     toggleUserStatus,
-    updateUserRole
+    updateUserRole,
+    deleteUser,
+    blockUser,
+    unblockUser
   };
 };
 
@@ -361,6 +394,8 @@ export const useFormations = (params = {}) => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState(null);
   // Stabiliser la dépendance params pour éviter des re-fetchs infinis
   const stableParams = JSON.stringify(params || {});
 
@@ -444,6 +479,8 @@ export const useFormations = (params = {}) => {
   // Fetch categories list from backend
   const fetchCategories = useCallback(async () => {
     try {
+      setCategoriesLoading(true);
+      setCategoriesError(null);
       const resp = await apiService.getFormationCategories();
       const payload = resp || {};
       let cats = [];
@@ -453,7 +490,10 @@ export const useFormations = (params = {}) => {
       setCategories(cats);
     } catch (err) {
       console.warn('Could not fetch formation categories:', err.message);
+      setCategoriesError(err.message);
       setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
     }
   }, []);
 
@@ -471,7 +511,10 @@ export const useFormations = (params = {}) => {
     togglePublish,
     createFormation,
     updateFormation,
-    deleteFormation
+    deleteFormation,
+    // Informations spécifiques aux catégories
+    categoriesLoading,
+    categoriesError
   };
 };
 
@@ -543,4 +586,67 @@ export const useAuth = () => {
   }, [getCurrentAdmin]);
 
   return { admin, loading, error, login, logout, getCurrentAdmin };
+};
+
+// Hook personnalisé pour récupérer les catégories de manière uniforme
+export const useCategories = (type = 'formations') => {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      let response;
+      
+      // Sélectionner la méthode API appropriée selon le type
+      switch (type.toLowerCase()) {
+        case 'products':
+        case 'produits':
+          response = await apiService.getProductCategories();
+          break;
+        case 'formations':
+        case 'formation':
+          response = await apiService.getFormationCategories();
+          break;
+        default:
+          throw new Error(`Type de catégorie non supporté: ${type}`);
+      }
+      
+      // Normaliser la réponse
+      const payload = response || {};
+      let cats = [];
+      
+      if (payload.data && Array.isArray(payload.data.categories)) {
+        cats = payload.data.categories;
+      } else if (Array.isArray(payload.categories)) {
+        cats = payload.categories;
+      } else if (Array.isArray(payload)) {
+        cats = payload;
+      }
+      
+      setCategories(cats);
+    } catch (err) {
+      console.warn(`Impossible de récupérer les catégories pour ${type}:`, err.message);
+      setError(err.message);
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [type]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  return {
+    categories,
+    loading,
+    error,
+    refetch: fetchCategories,
+    isEmpty: categories.length === 0,
+    hasError: !!error
+  };
 };

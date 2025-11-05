@@ -6,6 +6,7 @@ import apiService from '../services/apiService';
 import useErrorHandler from '../hooks/useErrorHandler';
 import { FieldWithError } from './ErrorMessage';
 import { useAuthToast } from '../contexts/ToastContext';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
     setLoading 
   } = useErrorHandler();
   const toast = useAuthToast();
+  const [showForgot, setShowForgot] = useState(false);
 
   // Vérifier si l'utilisateur vient de vérifier son email
   React.useEffect(() => {
@@ -125,24 +127,51 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
     // Afficher un toast de chargement
     const loadingToastId = toast.showLoading('Connexion en cours...');
 
+    // Normaliser l'identifiant (email ou téléphone)
+    const normalizeIdentifier = (val) => {
+      const raw = String(val || '').trim();
+      // Si c'est un email, laisser tel quel
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw);
+      if (isEmail) return raw.toLowerCase();
+      // Sinon, considérer comme téléphone: enlever espaces et ponctuation
+      const digits = raw.replace(/[^0-9+]/g, '');
+      // Déjà en E.164
+      if (digits.startsWith('+') && digits.length >= 8) return digits;
+      // Heuristique Sénégal (+221): enlever 0 initial, préfixer +221 si longueur 9
+      let onlyDigits = digits.replace(/\D/g, '');
+      if (onlyDigits.startsWith('0')) onlyDigits = onlyDigits.slice(1);
+      if (onlyDigits.length === 9) return `+221${onlyDigits}`;
+      // Sinon, renvoyer tel quel (le backend décidera)
+      return digits || raw;
+    };
+
     try {
       const result = await authService.login({
-        identifier: formData.identifier.trim(),
+        identifier: normalizeIdentifier(formData.identifier),
         password: formData.password
       });
       
       if (result.status === 'success') {
         // Supprimer le toast de chargement
         toast.removeToast(loadingToastId);
-       
         
-        // Mettre à jour l'authentification immédiatement
-        if (onSuccess) {
-          onSuccess(result.data.user);
+        // Empêcher la connexion des admins via la modale publique
+        const u = result.data?.user;
+        if (u?.role === 'admin' || u?.isSuperAdmin === true) {
+          try {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          } catch {}
+          toast.showInfo('Veuillez utiliser la page de connexion Administrateur.');
+          onClose();
+          navigate('/admin/login');
+          return;
         }
+
+        // Mettre à jour l'authentification immédiatement (non-admin)
+        if (onSuccess) onSuccess(result.data.user);
         // Rediriger selon le rôle
         redirectByRole(result.data.user);
-        
         // Fermer le modal
         onClose();
       }
@@ -219,6 +248,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
@@ -329,10 +359,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
               <button
                 type="button"
                 className="text-sm text-black hover:text-[#2D5F3F] transition-colors"
-                onClick={() => {
-                  // Logique de mot de passe oublié
-                  console.log('Mot de passe oublié');
-                }}
+                onClick={() => setShowForgot(true)}
               >
                 Mot de passe oublié ?
               </button>
@@ -351,6 +378,15 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
               <p className="text-xs text-center text-red-600">VITE_GOOGLE_CLIENT_ID manquant</p>
             )}
           </form>
+          {/* <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => { onClose(); navigate('/admin/login'); }}
+              className="text-sm text-green-700 hover:text-green-900 underline"
+            >
+              Espace administrateur
+            </button>
+          </div> */}
         </div>
 
         {/* Footer */}
@@ -367,6 +403,10 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister, onSuccess }) => {
         </div>
       </div>
     </div>
+    {showForgot && (
+      <ForgotPasswordModal isOpen={showForgot} onClose={() => setShowForgot(false)} />
+    )}
+    </>
   );
 };
 

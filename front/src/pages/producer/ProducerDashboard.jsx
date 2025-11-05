@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, ChevronDown, Search, Filter, Plus, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2 } from 'lucide-react';
+import { Upload, ChevronDown, Search, Filter, Plus, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2, User, Settings } from 'lucide-react';
 import ProducerLayout from '../../layouts/ProducerLayout';
 import useProducerData from '../../hooks/useProducerData';
+import ProfileModal from '../../components/ProfileModal';
+
 import {
   BarChart,
   Bar,
@@ -32,173 +34,172 @@ const ProducerDashboard = () => {
     unpublishProduct,
     searchProducts,
     filterProductsByCategory,
-    changeProductsPage
+    changeProductsPage,
+    // Gestion du profil
+    profile,
+    profileLoading,
+    profileError,
+    updateProfile,
+    changePassword,
+    getProfile,
+    refreshProfile
   } = useProducerData();
-
-  // State pour le formulaire d'ajout de produit
-  const [productForm, setProductForm] = useState({
-    name: '',
-    price: '',
-    description: '',
-    category: 'légumes',
-    stock: '',
-    unit: 'kg',
-    isOrganic: false
-  });
-
-  const [showProductForm, setShowProductForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
 
   // Données pour les graphiques (chiffre d'affaires par mois)
   const salesChartData = [
     { month: 'Jan', revenue: 45000, orders: 12 },
     { month: 'Fév', revenue: 38000, orders: 10 },
     { month: 'Mar', revenue: 49000, orders: 15 },
-    { month: 'Avr', revenue: 42000, orders: 13 },
-    { month: 'Mai', revenue: 50000, orders: 16 },
-    { month: 'Juin', revenue: 46000, orders: 14 },
+    { month: 'Avr', revenue: 41000, orders: 11 },
+    { month: 'Mai', revenue: 55000, orders: 18 },
+    { month: 'Juin', revenue: 50000, orders: 16 },
   ];
 
-  // Couleurs pour les graphiques
-  const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4'];
+  // Données de répartition des produits (simulées si non disponibles)
+  const productDistributionData = [
+    { name: 'Publiés', value: stats.publishedProducts || 0 },
+    { name: 'Non Publiés', value: stats.unpublishedProducts || 0 },
+  ];
+  const COLORS = ['#10B981', '#F59E0B'];
 
-  // Gérer les changements dans le formulaire
-  const handleInputChange = (e) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [newProductData, setNewProductData] = useState({
+    name: '',
+    description: '',
+    price: '',
+    unit: '',
+    category: '',
+    stock: '',
+    image: null,
+    isPublished: true,
+  });
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Charger le profil au montage
+  useEffect(() => {
+    getProfile();
+  }, [getProfile]);
+
+  // Gérer l'ouverture de la modale d'ajout/édition
+  const handleOpenProductModal = (product = null) => {
+    if (product) {
+      setEditingProduct(product);
+      setNewProductData({
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        stock: product.stock,
+        image: null, // L'image est gérée séparément
+        isPublished: product.isPublished,
+      });
+    } else {
+      setEditingProduct(null);
+      setNewProductData({
+        name: '',
+        description: '',
+        price: '',
+        unit: '',
+        category: '',
+        stock: '',
+        image: null,
+        isPublished: true,
+      });
+    }
+    setShowProductModal(true);
+  };
+
+  const handleCloseProductModal = () => {
+    setShowProductModal(false);
+    setEditingProduct(null);
+  };
+
+  const handleProductChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setProductForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
+    setNewProductData((prevData) => ({
+      ...prevData,
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
-  // Gérer l'upload d'image (simulation pour l'instant)
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setProductForm(prev => ({ ...prev, image: file }));
-    }
+    setNewProductData((prevData) => ({
+      ...prevData,
+      image: e.target.files[0],
+    }));
   };
 
-  // Soumettre le formulaire
-  const handleSubmit = async (e) => {
+  // Gérer la soumission du formulaire d'ajout/édition
+  const handleProductSubmit = async (e) => {
     e.preventDefault();
-    
+
+    const dataToSend = {
+      ...newProductData,
+      price: parseFloat(newProductData.price),
+      stock: parseInt(newProductData.stock, 10),
+    };
+
     try {
-      // Préparer les données du produit
-      const productData = {
-        name: productForm.name,
-        description: productForm.description,
-        price: parseFloat(productForm.price),
-        category: productForm.category,
-        stock: parseInt(productForm.stock),
-        unit: productForm.unit,
-        isOrganic: productForm.isOrganic
-      };
-
       if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
+        await updateProduct(editingProduct._id, dataToSend);
+        toast.success('Produit mis à jour avec succès');
       } else {
-        await createProduct(productData);
+        await createProduct(dataToSend);
+        toast.success('Produit ajouté avec succès');
       }
-
-      // Reset le formulaire
-      setProductForm({
-        name: '',
-        price: '',
-        description: '',
-        category: 'légumes',
-        stock: '',
-        unit: 'kg',
-        isOrganic: false
-      });
-      setShowProductForm(false);
-      setEditingProduct(null);
+      handleCloseProductModal();
     } catch (err) {
-      console.error('Erreur lors de la soumission:', err);
+      toast.error(err.message || "Erreur lors de l'opération");
     }
   };
 
-  // Gérer la recherche
-  const handleSearch = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    if (value.length > 2 || value.length === 0) {
-      searchProducts(value);
-    }
-  };
-
-  // Filtrer par catégorie
-  const handleCategoryFilter = (category) => {
-    setSelectedCategory(category);
-    filterProductsByCategory(category);
-  };
-
-  // Éditer un produit
-  const handleEditProduct = (product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      price: product.price.toString(),
-      description: product.description,
-      category: product.category,
-      stock: product.stock.toString(),
-      unit: product.unit || 'kg',
-      isOrganic: product.isOrganic || false
-    });
-    setShowProductForm(true);
-  };
-
-  // Supprimer un produit
-  const handleDeleteProduct = async (productId) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
+  // Gérer la suppression
+  const handleDeleteProduct = async (productId, productName) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le produit "${productName}" ?`)) {
       try {
         await deleteProduct(productId);
+        toast.success('Produit supprimé.');
       } catch (err) {
-        console.error('Erreur lors de la suppression:', err);
+        toast.error(err.message || 'Erreur lors de la suppression.');
       }
     }
   };
 
-  // Publier un produit
-  const handlePublishProduct = async (productId) => {
+  // Gérer la publication
+  const handlePublishToggle = async (productId, isPublished, productName) => {
     try {
-      await publishProduct(productId);
+      if (isPublished) {
+        await unpublishProduct(productId);
+        toast.info(`Produit "${productName}" dépublié.`);
+      } else {
+        await publishProduct(productId);
+        toast.success(`Produit "${productName}" publié.`);
+      }
     } catch (err) {
-      console.error('Erreur lors de la publication:', err);
+      toast.error(err.message || 'Erreur de publication.');
     }
   };
 
-  // Dépublier un produit
-  const handleUnpublishProduct = async (productId) => {
-    try {
-      await unpublishProduct(productId);
-    } catch (err) {
-      console.error('Erreur lors de la dépublication:', err);
-    }
+  // Filtrer les produits
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+    searchProducts(e.target.value);
   };
 
-  // Annuler l'édition
-  const cancelEdit = () => {
-    setEditingProduct(null);
-    setShowProductForm(false);
-    setProductForm({
-      name: '',
-      price: '',
-      description: '',
-      category: 'légumes',
-      stock: '',
-      unit: 'kg',
-      isOrganic: false
-    });
+  const handleCategoryFilter = (e) => {
+    setCategoryFilter(e.target.value);
+    filterProductsByCategory(e.target.value === 'all' ? undefined : e.target.value);
   };
 
-  if (loading && !showProductForm) {
+  if (loading) {
     return (
       <ProducerLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#59C94F]"></div>
         </div>
       </ProducerLayout>
     );
@@ -214,416 +215,542 @@ const ProducerDashboard = () => {
     );
   }
 
+  // Fonctions d'aide pour l'affichage
+  const getProductStatusBadge = (isPublished) => {
+    return isPublished
+      ? 'bg-green-100 text-green-800'
+      : 'bg-yellow-100 text-yellow-800';
+  };
+
+  const getProductStatusText = (isPublished) => {
+    return isPublished ? 'Publié' : 'Brouillon';
+  };
+
   return (
     <ProducerLayout>
-      {/* En-tête */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Producteur</h1>
-        <p className="text-lg text-gray-600">Gérez vos produits et suivez vos ventes</p>
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Produits</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalProducts || 0}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <Package className="w-6 h-6 text-green-600" />
-            </div>
+      <div className="max-w-7xl mx-auto">
+        {/* En-tête et Profil */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Producteur</h1>
+            <p className="text-lg text-gray-600">Gérez vos produits, commandes et performances</p>
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Commandes</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalOrders || 0}</p>
+          
+          {/* Avatar et profil */}
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-sm font-medium text-gray-900">
+                {profile?.firstName} {profile?.lastName}
+              </p>
+              <p className="text-xs text-gray-500">Producteur</p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <ShoppingCart className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Revenus</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.totalRevenue?.toLocaleString() || 0} FCFA</p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <TrendingUp className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Note moyenne</p>
-              <p className="text-2xl font-bold text-gray-800">{stats.averageRating?.toFixed(1) || '0.0'}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <Star className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Section Produits */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Header avec recherche et ajout */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Mes produits</h2>
-              <button
-                onClick={() => setShowProductForm(true)}
-                className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4" />
-                Ajouter un produit
-              </button>
-            </div>
-
-            {/* Barre de recherche et filtres */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un produit..."
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="relative group"
+            >
+              <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-green-700 transition-colors ring-2 ring-white shadow-lg group-hover:ring-green-400">
+                {profile?.profilePicture ? (
+                  <img 
+                    src={profile.profilePicture} 
+                    alt="Avatar" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-6 h-6 text-white" />
+                )}
               </div>
-              <select
-                value={selectedCategory}
-                onChange={(e) => handleCategoryFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Toutes catégories</option>
-                <option value="légumes">Légumes</option>
-                <option value="fruits">Fruits</option>
-                <option value="céréales">Céréales</option>
-                <option value="tubercules">Tubercules</option>
-                <option value="épices">Épices</option>
-              </select>
-            </div>
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-gray-50">
+                <Settings className="w-3 h-3 text-gray-600 group-hover:text-gray-800" />
+              </div>
+            </button>
+          </div>
+        </div>
 
-            {/* Liste des produits */}
-            <div className="space-y-4">
-              {products.length > 0 ? (
-                products.map((product) => (
-                  <div key={product.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800">{product.name}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{product.description}</p>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="font-medium text-green-600">{product.price} FCFA/{product.unit}</span>
-                          <span className="text-gray-500">Stock: {product.stock}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            product.isAvailable ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {product.isAvailable ? 'Publié' : 'Brouillon'}
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Chiffre d'affaires (mois)</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.monthlyRevenue?.toLocaleString() || 0} FCFA</p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <TrendingUp className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Commandes</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.totalOrders || 0}</p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <ShoppingCart className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Produits</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.totalProducts || 0}</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <Package className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Note Moyenne</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  <Star className="w-6 h-6 text-yellow-500 inline-block mr-1" />
+                  {stats.averageRating?.toFixed(1) || 'N/A'}
+                </p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <Star className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contenu principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Gestion des Produits */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-800">Catalogue Produits</h2>
+                <button
+                  onClick={() => handleOpenProductModal()}
+                  className="px-4 py-2 bg-[#59C94F] text-white rounded-lg hover:bg-[#4CAF50] transition-colors flex items-center space-x-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Ajouter un produit</span>
+                </button>
+              </div>
+
+              {/* Filtres et recherche */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher par nom..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                    value={searchTerm}
+                    onChange={handleSearch}
+                  />
+                </div>
+                
+                <select
+                  className="sm:w-1/3 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                  value={categoryFilter}
+                  onChange={handleCategoryFilter}
+                >
+                  <option value="all">Toutes les catégories</option>
+                  {/* Les catégories devraient venir d'un hook ou props */}
+                  <option value="fruits">Fruits</option>
+                  <option value="legumes">Légumes</option>
+                  <option value="cereales">Céréales</option>
+                  <option value="frais">Produits frais</option>
+                </select>
+              </div>
+
+              {/* Liste des produits */}
+              <div className="space-y-4">
+                {products.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>Aucun produit trouvé dans votre catalogue.</p>
+                  </div>
+                ) : (
+                  products.map((product) => (
+                    <div
+                      key={product._id}
+                      className="flex flex-col md:flex-row items-start md:items-center justify-between border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center mb-3 md:mb-0">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-16 h-16 object-cover rounded-lg mr-4"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center mr-4">
+                            <Package className="w-6 h-6 text-gray-500" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-800">{product.name}</h3>
+                          <p className="text-sm text-gray-600">
+                            {product.price} {product.unit} • Stock: {product.stock}
+                          </p>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getProductStatusBadge(
+                              product.isPublished
+                            )}`}
+                          >
+                            {getProductStatusText(product.isPublished)}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        {product.isAvailable ? (
-                          <button
-                            onClick={() => handleUnpublishProduct(product.id)}
-                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors text-xs sm:text-sm"
-                            title="Dépublier le produit"
-                          >
-                            <EyeOff className="w-4 h-4" />
-                            <span className="hidden sm:inline ml-1">Dépublier</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handlePublishProduct(product.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors text-xs sm:text-sm"
-                            title="Publier le produit"
-                          >
-                            <Eye className="w-4 h-4" />
-                            <span className="hidden sm:inline ml-1">Publier</span>
-                          </button>
-                        )}
+
+                      <div className="flex space-x-3 md:ml-auto">
                         <button
-                          onClick={() => handleEditProduct(product)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-xs sm:text-sm"
-                          title="Modifier le produit"
+                          onClick={() => handlePublishToggle(product._id, product.isPublished, product.name)}
+                          className={`p-2 rounded-full transition-colors ${
+                            product.isPublished
+                              ? 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'
+                              : 'bg-green-50 text-green-600 hover:bg-green-100'
+                          }`}
+                          title={product.isPublished ? 'Dépublier' : 'Publier'}
                         >
-                          <Edit className="w-4 h-4" />
-                          <span className="hidden sm:inline ml-1">Modifier</span>
+                          {product.isPublished ? (
+                            <EyeOff className="w-5 h-5" />
+                          ) : (
+                            <Eye className="w-5 h-5" />
+                          )}
                         </button>
                         <button
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-xs sm:text-sm"
-                          title="Supprimer le produit"
+                          onClick={() => handleOpenProductModal(product)}
+                          className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          title="Modifier"
                         >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="hidden sm:inline ml-1">Supprimer</span>
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product._id, product.name)}
+                          className="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
+                  ))
+                )}
+              </div>
+
+              {/* Pagination */}
+              {productsPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <button
+                      onClick={() => changeProductsPage(productsPagination.page - 1)}
+                      disabled={productsPagination.page === 1}
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
+                    >
+                      Précédent
+                    </button>
+                    <span className="px-3 py-1 text-sm">
+                      Page {productsPagination.page} sur {productsPagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => changeProductsPage(productsPagination.page + 1)}
+                      disabled={productsPagination.page === productsPagination.totalPages}
+                      className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
+                    >
+                      Suivant
+                    </button>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  {searchTerm || selectedCategory ? 'Aucun produit trouvé' : 'Aucun produit ajouté'}
-                </div>
-              )}
+                )}
             </div>
 
-            {/* Pagination */}
-            {productsPagination.totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-6">
-                <button
-                  onClick={() => changeProductsPage(productsPagination.page - 1)}
-                  disabled={productsPagination.page === 1}
-                  className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-                >
-                  Précédent
-                </button>
-                <span className="px-3 py-1 text-sm">
-                  Page {productsPagination.page} sur {productsPagination.totalPages}
-                </span>
-                <button
-                  onClick={() => changeProductsPage(productsPagination.page + 1)}
-                  disabled={productsPagination.page === productsPagination.totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-                >
-                  Suivant
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+            {/* Dernières Commandes */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+                <h2 className="text-xl font-bold text-gray-800 mb-6">Dernières Commandes</h2>
 
-        {/* Graphiques */}
-        <div className="space-y-6">
-          {/* Graphique des ventes */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Ventes par mois</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={salesChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" stroke="#666" />
-                <YAxis stroke="#666" />
-                <Tooltip
-                  formatter={(value, name) => [
-                    name === 'revenue' ? `${value.toLocaleString()} FCFA` : value,
-                    name === 'revenue' ? 'Revenus' : 'Commandes'
-                  ]}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '8px',
-                  }}
-                />
-                <Bar dataKey="revenue" fill="#10B981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+                {orders.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <p>Aucune commande récente.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {orders.slice(0, 5).map((order) => (
+                      <div
+                        key={order._id}
+                        className="flex items-center justify-between border-b border-gray-100 pb-3"
+                      >
+                        <div>
+                          <p className="font-medium text-gray-800">
+                            Commande #{order.orderNumber || 'N/A'}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {order.customerName || 'Client inconnu'} •{' '}
+                            {new Date(order.createdAt).toLocaleDateString('fr-FR')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-[#59C94F]">
+                            {order.totalAmount?.toLocaleString() || 0} FCFA
+                          </p>
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                              order.status === 'completed'
+                                ? 'bg-green-100 text-green-800'
+                                : order.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                          >
+                            {order.status === 'completed' ? 'Livrée' : order.status === 'pending' ? 'En attente' : 'En cours'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
           </div>
 
-          {/* Répartition par catégorie */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Répartition par catégorie</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Légumes', value: 35 },
-                    { name: 'Fruits', value: 25 },
-                    { name: 'Céréales', value: 20 },
-                    { name: 'Tubercules', value: 15 },
-                    { name: 'Épices', value: 5 }
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {[0, 1, 2, 3, 4].map((index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Graphiques */}
+          <div className="space-y-6">
+            {/* Chiffre d'affaires mensuel */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Chiffre d'affaires (6 derniers mois)</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={salesChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" stroke="#666" />
+                  <YAxis stroke="#666" axisLine={false} tickLine={false} tickFormatter={(value) => `${value / 1000}k`} />
+                  <Tooltip
+                    formatter={(value, name) => [
+                      name === 'revenue' ? `${value.toLocaleString()} FCFA` : value,
+                      name === 'revenue' ? 'Chiffre' : 'Commandes'
+                    ]}
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Répartition Produits */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Statut des Produits</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={productDistributionData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="value"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {productDistributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend layout="horizontal" align="center" verticalAlign="bottom" />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modal formulaire produit */}
-      {showProductForm && (
+      {/* Modal d'ajout/édition de produit */}
+      {showProductModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-800">
-                  {editingProduct ? 'Modifier le produit' : 'Ajouter un produit'}
-                </h2>
-                <button
-                  onClick={cancelEdit}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Image upload */}
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <h3 className="text-2xl font-bold text-gray-800">
+                {editingProduct ? 'Modifier le produit' : 'Ajouter un nouveau produit'}
+              </h3>
+              <button onClick={handleCloseProductModal} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleProductSubmit}>
+              <div className="space-y-4">
+                {/* Nom */}
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Image du produit</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-green-500 transition-colors cursor-pointer">
-                    <input
-                      type="file"
-                      id="product-image"
-                      accept="image/svg+xml,image/png,image/jpeg"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    <label htmlFor="product-image" className="cursor-pointer">
-                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600">Cliquez pour téléverser</p>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Nom du produit */}
-                <div>
-                  <label className="block text-gray-700 font-medium mb-2">Nom du produit *</label>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nom du produit</label>
                   <input
                     type="text"
                     name="name"
-                    value={productForm.name}
-                    onChange={handleInputChange}
+                    id="name"
                     required
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Ex: Tomates fraîches"
+                    value={newProductData.name}
+                    onChange={handleProductChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                    placeholder="Ex: Mangue Keitt, Farine de maïs"
                   />
-                </div>
-
-                {/* Prix et Stock */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">Prix (FCFA) *</label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={productForm.price}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      step="0.01"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="Ex: 2500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">Stock *</label>
-                    <input
-                      type="number"
-                      name="stock"
-                      value={productForm.stock}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="Ex: 100"
-                    />
-                  </div>
-                </div>
-
-                {/* Unité et Catégorie */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">Unité</label>
-                    <select
-                      name="unit"
-                      value={productForm.unit}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="kg">kg</option>
-                      <option value="g">g</option>
-                      <option value="pièce">pièce</option>
-                      <option value="pack">pack</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-medium mb-2">Catégorie *</label>
-                    <select
-                      name="category"
-                      value={productForm.category}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="légumes">Légumes</option>
-                      <option value="fruits">Fruits</option>
-                      <option value="céréales">Céréales</option>
-                      <option value="tubercules">Tubercules</option>
-                      <option value="épices">Épices</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Bio checkbox */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="isOrganic"
-                    checked={productForm.isOrganic}
-                    onChange={handleInputChange}
-                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <label className="ml-2 text-gray-700">Produit biologique</label>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-gray-700 font-medium mb-2">Description *</label>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                   <textarea
                     name="description"
-                    value={productForm.description}
-                    onChange={handleInputChange}
+                    id="description"
+                    rows="3"
                     required
-                    rows="4"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
-                    placeholder="Décrivez votre produit..."
+                    value={newProductData.description}
+                    onChange={handleProductChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent resize-y"
+                    placeholder="Description détaillée, avantages..."
                   />
                 </div>
 
-                {/* Boutons */}
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    {editingProduct ? 'Modifier' : 'Ajouter'} le produit
-                  </button>
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Prix */}
+                    <div>
+                        <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Prix (FCFA)</label>
+                        <input
+                            type="number"
+                            name="price"
+                            id="price"
+                            required
+                            value={newProductData.price}
+                            onChange={handleProductChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                            placeholder="Ex: 500"
+                            min="0"
+                        />
+                    </div>
+                    
+                    {/* Unité */}
+                    <div>
+                        <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                        <select
+                            name="unit"
+                            id="unit"
+                            required
+                            value={newProductData.unit}
+                            onChange={handleProductChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                        >
+                            <option value="">Sélectionner l'unité</option>
+                            <option value="kg">kg</option>
+                            <option value="unité">Unité</option>
+                            <option value="litre">Litre</option>
+                            <option value="sac">Sac</option>
+                        </select>
+                    </div>
                 </div>
-              </form>
-            </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Catégorie */}
+                  <div>
+                      <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                      <select
+                          name="category"
+                          id="category"
+                          required
+                          value={newProductData.category}
+                          onChange={handleProductChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                      >
+                          <option value="">Sélectionner la catégorie</option>
+                          <option value="fruits">Fruits</option>
+                          <option value="legumes">Légumes</option>
+                          <option value="cereales">Céréales</option>
+                          <option value="frais">Produits frais</option>
+                          <option value="sec">Produits secs</option>
+                      </select>
+                  </div>
+                  
+                  {/* Stock */}
+                  <div>
+                      <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">Stock disponible</label>
+                      <input
+                          type="number"
+                          name="stock"
+                          id="stock"
+                          required
+                          value={newProductData.stock}
+                          onChange={handleProductChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#59C94F] focus:border-transparent"
+                          placeholder="Ex: 100"
+                          min="0"
+                      />
+                  </div>
+                </div>
+
+                {/* Image */}
+                <div>
+                  <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">Image du produit</label>
+                  <div className="flex items-center space-x-4">
+                    <label htmlFor="image-upload" className="cursor-pointer flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#59C94F] transition-colors">
+                      <Upload className="w-5 h-5 text-gray-500 mr-2" />
+                      <span className="text-sm text-gray-700">
+                        {newProductData.image ? newProductData.image.name : (editingProduct && editingProduct.imageUrl ? 'Nouvelle image (optionnel)' : 'Ajouter une image')}
+                      </span>
+                      <input
+                        type="file"
+                        name="image"
+                        id="image-upload"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  </div>
+                  {(editingProduct && editingProduct.imageUrl && !newProductData.image) && (
+                    <p className="mt-2 text-xs text-gray-500">Image actuelle chargée: {editingProduct.imageUrl.substring(editingProduct.imageUrl.lastIndexOf('/') + 1)}</p>
+                  )}
+                </div>
+
+                {/* Publication */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="isPublished"
+                    id="isPublished"
+                    checked={newProductData.isPublished}
+                    onChange={handleProductChange}
+                    className="h-4 w-4 text-[#59C94F] border-gray-300 rounded focus:ring-[#59C94F]"
+                  />
+                  <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-900">Publier immédiatement</label>
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  type="button"
+                  onClick={handleCloseProductModal}
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  {editingProduct ? 'Modifier' : 'Ajouter'} le produit
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* Modal de profil */}
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        profile={profile}
+        onUpdateProfile={updateProfile}
+        onChangePassword={changePassword}
+        onRefreshProfile={refreshProfile}
+      />
     </ProducerLayout>
   );
 };

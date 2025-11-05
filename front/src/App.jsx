@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+
 import { CartProvider } from './contexts/CartContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ToastContainer } from 'react-toastify'
@@ -29,6 +31,7 @@ import ProducerFormations from './pages/producer/ProducerFormations'
 import DeliveryDashboard from './pages/delivery/DeliveryDashboard'
 import DeliveryDeliveries from './pages/delivery/DeliveryDeliveries'
 import DeliveryHistory from './pages/delivery/DeliveryHistory'
+import DeliveryStatistics from './pages/delivery/DeliveryStatistics'
 import SuperAdminDashboard from './pages/super_admin/SuperAdminDashboard'
 import SuperAdminOrders from './pages/super_admin/SuperAdminOrders'
 import SuperAdminProducts from './pages/super_admin/SuperAdminProducts'
@@ -39,6 +42,8 @@ import Experts from './pages/Experts'
 import Vendeurs from './pages/Vendeurs'
 import Livraison from './pages/Livraison'
 import Commandes from './pages/Commandes'
+import ResetPassword from './pages/ResetPassword'
+import AdminLogin from './pages/admin_standard/AdminLogin'
 
 function AppContent() {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
@@ -73,9 +78,18 @@ function AppContent() {
           <Route path="/panier" element={<Panier onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/connexion" element={<Login onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/contact" element={<Contact onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/about" element={<About onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/login" element={<Login onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
-          <Route path="/dashboard" element={<Dashboard onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute dashboard="any">
+                <Dashboard onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/services" element={<Services onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/experts" element={<Experts onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
           <Route path="/sellers" element={<Vendeurs onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
@@ -84,30 +98,116 @@ function AppContent() {
           <Route path="/commandes" element={<Commandes onOpenRegister={openRegisterModal} onOpenLogin={openLoginModal} />} />
 
           {/* Admin Routes */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/products" element={<AdminProducts />} />
-          <Route path="/admin/sales" element={<AdminSales />} />
-          <Route path="/admin/formations" element={<AdminFormations />} />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute dashboard="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute dashboard="admin">
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/products"
+            element={
+              <ProtectedRoute dashboard="admin">
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sales"
+            element={
+              <ProtectedRoute dashboard="admin">
+                <AdminSales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/formations"
+            element={
+              <ProtectedRoute dashboard="admin">
+                <AdminFormations />
+              </ProtectedRoute>
+            }
+          />
           
           {/* Producer Routes */}
-          <Route path="/producer/dashboard" element={<ProducerDashboard />} />
-          <Route path="/producer/products" element={<ProducerProducts />} />
-          <Route path="/producer/statistics" element={<ProducerStatistics />} />
-          <Route path="/producer/sales" element={<ProducerSales />} />
-          <Route path="/producer/profile" element={<ProducerProfile />} />
-          <Route path="/producer/settings" element={<ProducerSettings />} />
-          <Route path="/producer/formations" element={<ProducerFormations />} />
+          <Route path="/producer/dashboard" element={<ProtectedRoute dashboard="producer"><ProducerDashboard /></ProtectedRoute>} />
+          <Route path="/producer/products" element={<ProtectedRoute dashboard="producer"><ProducerProducts /></ProtectedRoute>} />
+          <Route path="/producer/statistics" element={<ProtectedRoute dashboard="producer"><ProducerStatistics /></ProtectedRoute>} />
+          <Route path="/producer/sales" element={<ProtectedRoute dashboard="producer"><ProducerSales /></ProtectedRoute>} />
+          <Route path="/producer/profile" element={<ProtectedRoute dashboard="producer"><ProducerProfile /></ProtectedRoute>} />
+          <Route path="/producer/settings" element={<ProtectedRoute dashboard="producer"><ProducerSettings /></ProtectedRoute>} />
+          <Route path="/producer/formations" element={<ProtectedRoute dashboard="producer"><ProducerFormations /></ProtectedRoute>} />
           
           {/* Delivery Routes */}
-          <Route path="/delivery/dashboard" element={<DeliveryDashboard />} />
-          <Route path="/delivery/deliveries" element={<DeliveryDeliveries />} />
-          <Route path="/delivery/history" element={<DeliveryHistory />} />
+          <Route path="/delivery/dashboard" element={<ProtectedRoute dashboard="delivery"><DeliveryDashboard /></ProtectedRoute>} />
+          <Route path="/delivery/deliveries" element={<ProtectedRoute dashboard="delivery"><DeliveryDeliveries /></ProtectedRoute>} />
+          <Route path="/delivery/history" element={<ProtectedRoute dashboard="delivery"><DeliveryHistory /></ProtectedRoute>} />
+          <Route path="/delivery/statistics" element={<ProtectedRoute dashboard="delivery"><DeliveryStatistics /></ProtectedRoute>} />
           
           {/* Super Admin Routes */}
-          <Route path="/super-admin/dashboard" element={<SuperAdminDashboard />} />
-          <Route path="/super-admin/orders" element={<SuperAdminOrders />} />
-          <Route path="/super-admin/products" element={<SuperAdminProducts />} />
+          <Route path="/super-admin/dashboard" element={<ProtectedRoute dashboard="super-admin"><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/super-admin/orders" element={<ProtectedRoute dashboard="super-admin"><SuperAdminOrders /></ProtectedRoute>} />
+          <Route path="/super-admin/products" element={<ProtectedRoute dashboard="super-admin"><SuperAdminProducts /></ProtectedRoute>} />
+          
+          {/* Super Admin Access to Admin Standard Pages */}
+          <Route
+            path="/super-admin/admin-dashboard"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-users"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-products"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminProducts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-sales"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminSales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-formations"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminFormations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/admin-login"
+            element={
+              <ProtectedRoute dashboard="super-admin">
+                <AdminLogin />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
         
         {/* Modal d'inscription */}

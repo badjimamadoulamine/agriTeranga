@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 
 const AdminSidebar = ({ user, onClose }) => {
+
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const location = useLocation()

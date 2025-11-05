@@ -27,6 +27,7 @@ const authService = {
         localStorage.setItem('deliveryDashboardToken', apiToken)
         localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
       }
+      try { window.dispatchEvent(new Event('auth-changed')) } catch {}
     }
     return response.data
   },
@@ -51,6 +52,7 @@ const authService = {
         localStorage.setItem('deliveryDashboardToken', apiToken)
         localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
       }
+      try { window.dispatchEvent(new Event('auth-changed')) } catch {}
     }
     return response.data
   },
@@ -59,6 +61,7 @@ const authService = {
   logout: () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    try { window.dispatchEvent(new Event('auth-changed')) } catch {}
     window.location.href = '/login'
   },
 

@@ -1,33 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, ChevronDown, Search, Filter, Plus, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2, User, Settings } from 'lucide-react';
+import { Upload, Search, Package, TrendingUp, ShoppingCart, Star, Eye, EyeOff, Edit, Trash2, X } from 'lucide-react';
 import ProducerLayout from '../../layouts/ProducerLayout';
 import useProducerData from '../../hooks/useProducerData';
-import ProfileModal from '../../components/ProfileModal';
-
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
 import { toast } from 'react-toastify';
 
 const ProducerDashboard = () => {
   const {
     stats,
     products,
-    orders,
     loading,
     error,
     productsPagination,
-    createProduct,
     updateProduct,
     deleteProduct,
     publishProduct,
@@ -35,32 +18,7 @@ const ProducerDashboard = () => {
     searchProducts,
     filterProductsByCategory,
     changeProductsPage,
-    // Gestion du profil
-    profile,
-    profileLoading,
-    profileError,
-    updateProfile,
-    changePassword,
-    getProfile,
-    refreshProfile
   } = useProducerData();
-
-  // Données pour les graphiques (chiffre d'affaires par mois)
-  const salesChartData = [
-    { month: 'Jan', revenue: 45000, orders: 12 },
-    { month: 'Fév', revenue: 38000, orders: 10 },
-    { month: 'Mar', revenue: 49000, orders: 15 },
-    { month: 'Avr', revenue: 41000, orders: 11 },
-    { month: 'Mai', revenue: 55000, orders: 18 },
-    { month: 'Juin', revenue: 50000, orders: 16 },
-  ];
-
-  // Données de répartition des produits (simulées si non disponibles)
-  const productDistributionData = [
-    { name: 'Publiés', value: stats.publishedProducts || 0 },
-    { name: 'Non Publiés', value: stats.unpublishedProducts || 0 },
-  ];
-  const COLORS = ['#10B981', '#F59E0B'];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -76,12 +34,10 @@ const ProducerDashboard = () => {
     image: null,
     isPublished: true,
   });
-  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Charger le profil au montage
   useEffect(() => {
-    getProfile();
-  }, [getProfile]);
+  }, []);
 
   // Gérer l'ouverture de la modale d'ajout/édition
   const handleOpenProductModal = (product = null) => {
@@ -229,41 +185,10 @@ const ProducerDashboard = () => {
   return (
     <ProducerLayout>
       <div className="max-w-7xl mx-auto">
-        {/* En-tête et Profil */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Producteur</h1>
-            <p className="text-lg text-gray-600">Gérez vos produits, commandes et performances</p>
-          </div>
-          
-          {/* Avatar et profil */}
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">
-                {profile?.firstName} {profile?.lastName}
-              </p>
-              <p className="text-xs text-gray-500">Producteur</p>
-            </div>
-            <button
-              onClick={() => setShowProfileModal(true)}
-              className="relative group"
-            >
-              <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-green-700 transition-colors ring-2 ring-white shadow-lg group-hover:ring-green-400">
-                {profile?.profilePicture ? (
-                  <img 
-                    src={profile.profilePicture} 
-                    alt="Avatar" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="w-6 h-6 text-white" />
-                )}
-              </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-gray-50">
-                <Settings className="w-3 h-3 text-gray-600 group-hover:text-gray-800" />
-              </div>
-            </button>
-          </div>
+        {/* En-tête */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Producteur</h1>
+          <p className="text-lg text-gray-600">Gérez vos produits, commandes et performances</p>
         </div>
 
         {/* Statistiques */}
@@ -321,19 +246,12 @@ const ProducerDashboard = () => {
         </div>
 
         {/* Contenu principal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 gap-6">
+          <div className="space-y-6">
             {/* Gestion des Produits */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-800">Catalogue Produits</h2>
-                <button
-                  onClick={() => handleOpenProductModal()}
-                  className="px-4 py-2 bg-[#59C94F] text-white rounded-lg hover:bg-[#4CAF50] transition-colors flex items-center space-x-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span>Ajouter un produit</span>
-                </button>
               </div>
 
               {/* Filtres et recherche */}
@@ -355,11 +273,13 @@ const ProducerDashboard = () => {
                   onChange={handleCategoryFilter}
                 >
                   <option value="all">Toutes les catégories</option>
-                  {/* Les catégories devraient venir d'un hook ou props */}
                   <option value="fruits">Fruits</option>
-                  <option value="legumes">Légumes</option>
-                  <option value="cereales">Céréales</option>
+                  <option value="légumes">Légumes</option>
+                  <option value="céréales">Céréales</option>
+                  <option value="tubercules">Tubercules</option>
+                  <option value="épices">Épices</option>
                   <option value="frais">Produits frais</option>
+                  <option value="sec">Produits secs</option>
                 </select>
               </div>
 
@@ -462,104 +382,6 @@ const ProducerDashboard = () => {
                   </div>
                 )}
             </div>
-
-            {/* Dernières Commandes */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-6">Dernières Commandes</h2>
-
-                {orders.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>Aucune commande récente.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {orders.slice(0, 5).map((order) => (
-                      <div
-                        key={order._id}
-                        className="flex items-center justify-between border-b border-gray-100 pb-3"
-                      >
-                        <div>
-                          <p className="font-medium text-gray-800">
-                            Commande #{order.orderNumber || 'N/A'}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {order.customerName || 'Client inconnu'} •{' '}
-                            {new Date(order.createdAt).toLocaleDateString('fr-FR')}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-[#59C94F]">
-                            {order.totalAmount?.toLocaleString() || 0} FCFA
-                          </p>
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                              order.status === 'completed'
-                                ? 'bg-green-100 text-green-800'
-                                : order.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {order.status === 'completed' ? 'Livrée' : order.status === 'pending' ? 'En attente' : 'En cours'}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-            </div>
-          </div>
-
-          {/* Graphiques */}
-          <div className="space-y-6">
-            {/* Chiffre d'affaires mensuel */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Chiffre d'affaires (6 derniers mois)</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={salesChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" stroke="#666" />
-                  <YAxis stroke="#666" axisLine={false} tickLine={false} tickFormatter={(value) => `${value / 1000}k`} />
-                  <Tooltip
-                    formatter={(value, name) => [
-                      name === 'revenue' ? `${value.toLocaleString()} FCFA` : value,
-                      name === 'revenue' ? 'Chiffre' : 'Commandes'
-                    ]}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Répartition Produits */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Statut des Produits</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={productDistributionData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {productDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend layout="horizontal" align="center" verticalAlign="bottom" />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
           </div>
         </div>
       </div>
@@ -660,8 +482,10 @@ const ProducerDashboard = () => {
                       >
                           <option value="">Sélectionner la catégorie</option>
                           <option value="fruits">Fruits</option>
-                          <option value="legumes">Légumes</option>
-                          <option value="cereales">Céréales</option>
+                          <option value="légumes">Légumes</option>
+                          <option value="céréales">Céréales</option>
+                          <option value="tubercules">Tubercules</option>
+                          <option value="épices">Épices</option>
                           <option value="frais">Produits frais</option>
                           <option value="sec">Produits secs</option>
                       </select>
@@ -741,16 +565,6 @@ const ProducerDashboard = () => {
           </div>
         </div>
       )}
-
-      {/* Modal de profil */}
-      <ProfileModal
-        isOpen={showProfileModal}
-        onClose={() => setShowProfileModal(false)}
-        profile={profile}
-        onUpdateProfile={updateProfile}
-        onChangePassword={changePassword}
-        onRefreshProfile={refreshProfile}
-      />
     </ProducerLayout>
   );
 };

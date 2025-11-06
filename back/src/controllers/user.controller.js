@@ -346,6 +346,86 @@ exports.getMyStats = async (req, res) => {
   }
 };
 
+// Obtenir le tableau de bord complet du producteur
+exports.getProducerDashboard = async (req, res) => {
+  try {
+    if (!(req.user.role === 'producer' || req.user.role === 'producteur')) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Cette fonctionnalité est réservée aux producteurs'
+      });
+    }
+
+    // Nombre total de produits
+    const totalProducts = await Product.countDocuments({ producer: req.user.id });
+    const publishedProducts = await Product.countDocuments({
+      producer: req.user.id,
+      isAvailable: true
+    });
+    const unpublishedProducts = totalProducts - publishedProducts;
+
+    // Commandes reçues
+    const orders = await Order.find({ 'items.producer': req.user.id });
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(o => o.status === 'pending').length;
+    const completedOrders = orders.filter(o => o.status === 'completed').length;
+
+    // Revenu total et mensuel
+    let totalRevenue = 0;
+    let monthlyRevenue = 0;
+    const currentMonth = new Date();
+    currentMonth.setDate(1);
+    currentMonth.setHours(0, 0, 0, 0);
+
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.producer && item.producer.toString() === req.user.id && order.paymentStatus === 'paid') {
+          const itemRevenue = item.subtotal || 0;
+          totalRevenue += itemRevenue;
+          
+          // Vérifier si la commande est du mois en cours
+          if (order.createdAt >= currentMonth) {
+            monthlyRevenue += itemRevenue;
+          }
+        }
+      });
+    });
+
+    // Évaluation moyenne
+    const products = await Product.find({ producer: req.user.id });
+    let totalRating = 0;
+    let ratingCount = 0;
+    products.forEach(p => {
+      if (p.rating && p.rating.average > 0) {
+        totalRating += p.rating.average;
+        ratingCount++;
+      }
+    });
+    const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        totalProducts,
+        publishedProducts,
+        unpublishedProducts,
+        totalOrders,
+        pendingOrders,
+        completedOrders,
+        totalRevenue: Math.round(totalRevenue),
+        monthlyRevenue: Math.round(monthlyRevenue),
+        averageRating: parseFloat(averageRating.toFixed(2))
+      }
+    });
+  } catch (error) {
+    console.error('Erreur getProducerDashboard:', error);
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
 // Obtenir mes statistiques (pour livreur)
 exports.getDelivererStats = async (req, res) => {
   try {

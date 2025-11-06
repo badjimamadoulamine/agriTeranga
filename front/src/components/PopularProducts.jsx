@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import apiService from '../services/apiService'
+import { getProductImageUrl } from '../utils/imageUtils'
 
 const PopularProducts = () => {
   const [products, setProducts] = useState([])
@@ -62,25 +63,22 @@ const PopularProducts = () => {
               className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden border border-gray-100 group block"
             >
               <div className="relative">
-                <img 
-                  src={(() => {
-                    const base = import.meta.env.VITE_API_URL;
-                    const origin = (() => { try { return new URL(base).origin } catch { return '' } })();
-                    if (product.imageUrl) return product.imageUrl;
-                    if (product.image) return product.image;
-                    if (Array.isArray(product.images) && product.images.length > 0) {
-                      const raw = String(product.images[0] ?? '');
-                      const file = raw.split(/[\\\/]/).pop();
-                      if (file) return `${origin}/uploads/${file}`;
-                    }
-                    return '';
-                  })()} 
-                  alt={product.name} 
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <span className="absolute top-2 right-2 bg-yellow-400 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  {product.discount || 'Promo'}
-                </span>
+                {getProductImageUrl(product) ? (
+                  <img 
+                    src={getProductImageUrl(product)} 
+                    alt={product.name} 
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gray-100 flex items-center justify-center">
+                    <span className="text-6xl">🌾</span>
+                  </div>
+                )}
+                {product.discount && (
+                  <span className="absolute top-2 right-2 bg-yellow-400 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    {product.discount}
+                  </span>
+                )}
               </div>
               <div className="p-4">
                 <h3 className="font-bold text-gray-800 text-lg mb-2 group-hover:text-green-600 transition-colors">

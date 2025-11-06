@@ -45,7 +45,12 @@ const useProducerData = () => {
           totalProducts: dashboardData.totalProducts || 0,
           totalOrders: dashboardData.totalOrders || 0,
           totalRevenue: dashboardData.totalRevenue || 0,
-          averageRating: dashboardData.averageRating || 0
+          monthlyRevenue: dashboardData.monthlyRevenue || 0,
+          averageRating: dashboardData.averageRating || 0,
+          publishedProducts: dashboardData.publishedProducts || 0,
+          unpublishedProducts: dashboardData.unpublishedProducts || 0,
+          pendingOrders: dashboardData.pendingOrders || 0,
+          completedOrders: dashboardData.completedOrders || 0
         });
       } else {
         // Si pas de données, utiliser des valeurs par défaut
@@ -53,7 +58,12 @@ const useProducerData = () => {
           totalProducts: 0,
           totalOrders: 0,
           totalRevenue: 0,
-          averageRating: 0
+          monthlyRevenue: 0,
+          averageRating: 0,
+          publishedProducts: 0,
+          unpublishedProducts: 0,
+          pendingOrders: 0,
+          completedOrders: 0
         });
       }
     } catch (err) {
@@ -63,7 +73,12 @@ const useProducerData = () => {
         totalProducts: 0,
         totalOrders: 0,
         totalRevenue: 0,
-        averageRating: 0
+        monthlyRevenue: 0,
+        averageRating: 0,
+        publishedProducts: 0,
+        unpublishedProducts: 0,
+        pendingOrders: 0,
+        completedOrders: 0
       });
       // toast.error('Erreur lors du chargement des statistiques');
       // toast.info('Vérifiez votre connexion internet');
@@ -86,17 +101,31 @@ const useProducerData = () => {
       if (response?.status === 'success') {
         const data = response.data || {};
         const items = data.products || data.items || data.results || [];
-        // Normaliser les produits pour l'UI (id au lieu de _id)
+        // Construire l'URL complète pour les images
+        const getImageUrl = (imagePath) => {
+          if (!imagePath) return null;
+          // Si c'est déjà une URL complète, la retourner
+          if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+            return imagePath;
+          }
+          // Sinon, construire l'URL complète
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:5000';
+          return `${baseUrl}/uploads/${imagePath}`;
+        };
+
+        // Normaliser les produits pour l'UI
         const normalized = (items || []).map((p) => ({
-          id: p.id || p._id || p.productId,
+          _id: p._id || p.id || p.productId,
           name: p.name,
           description: p.description,
           price: p.price,
           category: p.category,
           stock: p.stock,
           unit: p.unit,
-          isAvailable: typeof p.isAvailable === 'boolean' ? p.isAvailable : (p.isPublished ?? false),
-          image: p.image || p.images?.[0] || p.thumbnail,
+          isOrganic: p.isOrganic || false,
+          isPublished: typeof p.isAvailable === 'boolean' ? p.isAvailable : (p.isPublished ?? false),
+          imageUrl: getImageUrl(p.imageUrl || p.image || (p.images && p.images.length > 0 ? p.images[0] : null) || p.thumbnail),
+          images: (p.images || []).map(img => getImageUrl(img)),
           createdAt: p.createdAt,
           updatedAt: p.updatedAt
         }));
@@ -128,7 +157,9 @@ const useProducerData = () => {
         const data = response.data || {};
         const items = data.orders || data.items || data.results || [];
         const normalized = (items || []).map((o) => ({
-          id: o.id || o._id || o.orderId,
+          _id: o._id || o.id || o.orderId,
+          orderNumber: o.orderNumber || o.number,
+          customerName: o.customerName || o.customer?.name || 'Client inconnu',
           status: o.status,
           totalAmount: o.totalAmount || o.amount || 0,
           createdAt: o.createdAt,
@@ -181,7 +212,7 @@ const useProducerData = () => {
         toast.success('Produit modifié avec succès');
         // Mettre à jour le produit dans la liste
         setProducts(prev => prev.map(product => 
-          product.id === productId ? { ...product, ...productData } : product
+          product._id === productId ? { ...product, ...productData } : product
         ));
         return response.data;
       }
@@ -205,7 +236,7 @@ const useProducerData = () => {
       if (response.status === 'success') {
         toast.success('Produit supprimé avec succès');
         // Retirer le produit de la liste
-        setProducts(prev => prev.filter(product => product.id !== productId));
+        setProducts(prev => prev.filter(product => product._id !== productId));
         // Mettre à jour les statistiques
         await loadStats();
       }
@@ -230,7 +261,7 @@ const useProducerData = () => {
         toast.success('Produit publié avec succès');
         // Mettre à jour le produit dans la liste
         setProducts(prev => prev.map(product => 
-          product.id === productId ? { ...product, isAvailable: true } : product
+          product._id === productId ? { ...product, isPublished: true, isAvailable: true } : product
         ));
         return response.data;
       }
@@ -255,7 +286,7 @@ const useProducerData = () => {
         toast.success('Produit dépublié avec succès');
         // Mettre à jour le produit dans la liste
         setProducts(prev => prev.map(product => 
-          product.id === productId ? { ...product, isAvailable: false } : product
+          product._id === productId ? { ...product, isPublished: false, isAvailable: false } : product
         ));
         return response.data;
       }
@@ -280,7 +311,7 @@ const useProducerData = () => {
         toast.success('Statut de commande mis à jour');
         // Mettre à jour la commande dans la liste
         setOrders(prev => prev.map(order => 
-          order.id === orderId ? { ...order, status: newStatus } : order
+          order._id === orderId ? { ...order, status: newStatus } : order
         ));
         return response.data;
       }

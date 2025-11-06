@@ -54,8 +54,6 @@ const AdminFormations = () => {
     instructor: '',
     startDate: '',
     isPublished: true,
-    thumbnail: null,
-    document: null,
     video: null
   })
 
@@ -136,8 +134,6 @@ const AdminFormations = () => {
       form.append('instructor', newFormation.instructor || '')
       form.append('startDate', newFormation.startDate || '')
       form.append('isPublished', String(Boolean(newFormation.isPublished)))
-      if (newFormation.thumbnail instanceof File) form.append('thumbnail', newFormation.thumbnail)
-      if (newFormation.document instanceof File) form.append('document', newFormation.document)
       if (newFormation.video instanceof File) form.append('video', newFormation.video)
 
       await createFormation(form)
@@ -153,8 +149,6 @@ const AdminFormations = () => {
         instructor: '',
         startDate: '',
         isPublished: true,
-        thumbnail: null,
-        document: null,
         video: null
       })
     } catch (error) {
@@ -745,24 +739,6 @@ const AdminFormations = () => {
                 </div>
 
                 {/* Uploads */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Image (thumbnail)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    onChange={(e) => setNewFormation({ ...newFormation, thumbnail: e.target.files?.[0] || null })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Document (PDF)</label>
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    onChange={(e) => setNewFormation({ ...newFormation, document: e.target.files?.[0] || null })}
-                  />
-                </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Vidéo (MP4)</label>
                   <input

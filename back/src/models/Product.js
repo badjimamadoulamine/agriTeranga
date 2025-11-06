@@ -45,7 +45,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'La catégorie est requise'],
-    enum: ['fruits', 'légumes', 'céréales', 'tubercules', 'élevage', 'produits-transformés', 'autre']
+    enum: ['fruits', 'légumes', 'céréales', 'tubercules', 'épices', 'élevage', 'produits-transformés', 'frais', 'sec', 'autre']
   },
   stock: {
     type: Number,
@@ -55,7 +55,7 @@ const productSchema = new mongoose.Schema({
   },
   unit: {
     type: String,
-    enum: ['kg', 'litre', 'unité', 'tonne', 'sac'],
+    enum: ['kg', 'g', 'litre', 'unité', 'pièce', 'pack', 'tonne', 'sac'],
     default: 'kg'
   },
   images: [{

@@ -17,6 +17,7 @@ import {
 import ProducerLayout from '../../layouts/ProducerLayout';
 import useProducerData from '../../hooks/useProducerData';
 import { toast } from 'react-toastify';
+import { getProductImageUrl } from '../../utils/imageUtils';
 
 const ProducerProducts = () => {
   const {
@@ -42,7 +43,7 @@ const ProducerProducts = () => {
     name: '',
     price: '',
     description: '',
-    category: 'légumes',
+    category: '',
     stock: '',
     unit: 'kg',
     isOrganic: false
@@ -83,21 +84,25 @@ const ProducerProducts = () => {
     setSaving(true);
     
     try {
-      // Préparer les données du produit
-      const productData = {
-        name: productForm.name,
-        description: productForm.description,
-        price: parseFloat(productForm.price),
-        category: productForm.category,
-        stock: parseInt(productForm.stock),
-        unit: productForm.unit,
-        isOrganic: productForm.isOrganic
-      };
+      // Préparer les données du produit avec FormData pour l'upload d'image
+      const formData = new FormData();
+      formData.append('name', productForm.name);
+      formData.append('description', productForm.description);
+      formData.append('price', parseFloat(productForm.price));
+      formData.append('category', productForm.category);
+      formData.append('stock', parseInt(productForm.stock));
+      formData.append('unit', productForm.unit);
+      formData.append('isOrganic', productForm.isOrganic);
+      
+      // Ajouter l'image si elle existe
+      if (productForm.image) {
+        formData.append('images', productForm.image);
+      }
 
       if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
+        await updateProduct(editingProduct._id, formData);
       } else {
-        await createProduct(productData);
+        await createProduct(formData);
       }
 
       // Reset le formulaire
@@ -116,7 +121,7 @@ const ProducerProducts = () => {
       name: '',
       price: '',
       description: '',
-      category: 'légumes',
+      category: '',
       stock: '',
       unit: 'kg',
       isOrganic: false
@@ -240,7 +245,7 @@ const ProducerProducts = () => {
             <div>
               <p className="text-sm text-gray-600 mb-1">Publiés</p>
               <p className="text-2xl font-bold text-green-600">
-                {products.filter(p => p.isAvailable).length}
+                {products.filter(p => p.isPublished).length}
               </p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">
@@ -254,7 +259,7 @@ const ProducerProducts = () => {
             <div>
               <p className="text-sm text-gray-600 mb-1">Brouillons</p>
               <p className="text-2xl font-bold text-orange-600">
-                {products.filter(p => !p.isAvailable).length}
+                {products.filter(p => !p.isPublished).length}
               </p>
             </div>
             <div className="p-3 bg-orange-100 rounded-full">
@@ -300,11 +305,16 @@ const ProducerProducts = () => {
             className="px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="">Toutes catégories</option>
-            <option value="légumes">Légumes</option>
             <option value="fruits">Fruits</option>
+            <option value="légumes">Légumes</option>
             <option value="céréales">Céréales</option>
             <option value="tubercules">Tubercules</option>
             <option value="épices">Épices</option>
+            <option value="élevage">Élevage</option>
+            <option value="produits-transformés">Produits transformés</option>
+            <option value="frais">Produits frais</option>
+            <option value="sec">Produits secs</option>
+            <option value="autre">Autre</option>
           </select>
 
           {/* Filtre statut */}
@@ -360,23 +370,22 @@ const ProducerProducts = () => {
               )}
               {!loading && !error && products.map((product) => (
                 <tr
-                  key={product.id}
+                  key={product._id}
                   className="hover:bg-gray-50 transition-colors"
                 >
                   {/* Product Name with Image */}
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-sm font-bold text-green-700 overflow-hidden">
-                        {(() => {
-                          let src = product.image;
-                          if (!src && product.images && product.images.length > 0) {
-                            src = product.images[0];
-                          }
-                          if (src) {
-                            return <img src={src} alt={product.name} className="w-full h-full object-cover" />;
-                          }
-                          return product.name.charAt(0).toUpperCase();
-                        })()}
+                        {getProductImageUrl(product) ? (
+                          <img 
+                            src={getProductImageUrl(product)} 
+                            alt={product.name} 
+                            className="w-full h-full object-cover" 
+                          />
+                        ) : (
+                          product.name.charAt(0).toUpperCase()
+                        )}
                       </div>
                       <div>
                         <div className="text-gray-800 font-medium">
@@ -411,11 +420,11 @@ const ProducerProducts = () => {
                   {/* Status */}
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      product.isAvailable 
+                      product.isPublished 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {product.isAvailable ? 'Publié' : 'Brouillon'}
+                      {product.isPublished ? 'Publié' : 'Brouillon'}
                     </span>
                   </td>
 
@@ -423,9 +432,9 @@ const ProducerProducts = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       {/* Toggle Visibility */}
-                      {product.isAvailable ? (
+                      {product.isPublished ? (
                         <button
-                          onClick={() => handleUnpublishProduct(product.id)}
+                          onClick={() => handleUnpublishProduct(product._id)}
                           className="p-2 hover:bg-orange-50 rounded-lg transition-colors group"
                           title="Dépublier"
                         >
@@ -433,7 +442,7 @@ const ProducerProducts = () => {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handlePublishProduct(product.id)}
+                          onClick={() => handlePublishProduct(product._id)}
                           className="p-2 hover:bg-green-50 rounded-lg transition-colors group"
                           title="Publier"
                         >
@@ -452,7 +461,7 @@ const ProducerProducts = () => {
 
                       {/* Delete */}
                       <button
-                        onClick={() => handleDeleteProduct(product.id)}
+                        onClick={() => handleDeleteProduct(product._id)}
                         className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
                         title="Supprimer"
                       >
@@ -524,6 +533,14 @@ const ProducerProducts = () => {
                       <p className="text-gray-600">Cliquez pour téléverser</p>
                     </label>
                   </div>
+                  {productForm.image && (
+                    <p className="text-sm text-green-600 mt-2 flex items-center justify-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {productForm.image.name}
+                    </p>
+                  )}
                 </div>
 
                 {/* Nom du produit */}
@@ -596,11 +613,17 @@ const ProducerProducts = () => {
                       required
                       className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
-                      <option value="légumes">Légumes</option>
+                      <option value="">Sélectionner une catégorie</option>
                       <option value="fruits">Fruits</option>
+                      <option value="légumes">Légumes</option>
                       <option value="céréales">Céréales</option>
                       <option value="tubercules">Tubercules</option>
                       <option value="épices">Épices</option>
+                      <option value="élevage">Élevage</option>
+                      <option value="produits-transformés">Produits transformés</option>
+                      <option value="frais">Produits frais</option>
+                      <option value="sec">Produits secs</option>
+                      <option value="autre">Autre</option>
                     </select>
                   </div>
                 </div>

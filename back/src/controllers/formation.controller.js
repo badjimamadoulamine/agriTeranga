@@ -3,21 +3,39 @@ const Formation = require('../models/Formation');
 // Obtenir toutes les formations
 exports.getAllFormations = async (req, res) => {
   try {
-    const { category, type, level, page = 1, limit = 12 } = req.query;
+    const { category, type, level, page, limit, isPublished, search } = req.query;
 
-    const query = { isPublished: true };
+    // Pagination sécurisée
+    let pageNum = parseInt(page, 10);
+    let limitNum = parseInt(limit, 10);
+    if (!Number.isFinite(pageNum) || pageNum < 1) pageNum = 1;
+    if (!Number.isFinite(limitNum) || limitNum < 1 || limitNum > 100) limitNum = 12;
+    const skip = (pageNum - 1) * limitNum;
 
+    // Filtres
+    const query = {};
+    // isPublished: true par défaut, surcharge possible via query
+    if (typeof isPublished !== 'undefined') {
+      query.isPublished = String(isPublished) === 'true';
+    } else {
+      query.isPublished = true;
+    }
     if (category) query.category = category;
     if (type) query.type = type;
     if (level) query.level = level;
-
-    const skip = (page - 1) * limit;
+    if (search && String(search).trim() !== '') {
+      const s = String(search).trim();
+      query.$or = [
+        { title: { $regex: s, $options: 'i' } },
+        { description: { $regex: s, $options: 'i' } }
+      ];
+    }
 
     const formations = await Formation.find(query)
       .populate('instructor', 'firstName lastName profilePicture')
       .sort('-createdAt')
       .skip(skip)
-      .limit(Number(limit));
+      .limit(limitNum);
 
     const total = await Formation.countDocuments(query);
 

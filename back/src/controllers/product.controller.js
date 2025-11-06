@@ -133,8 +133,10 @@ exports.createProduct = async (req, res) => {
     // Gérer les images uploadées
     if (req.files && req.files.length > 0) {
       productData.images = req.files.map(file => {
-        // Stocker seulement le nom du fichier relatif, pas le chemin complet
-        return path.basename(file.path);
+        // Stocker le chemin relatif depuis le dossier uploads
+        // Les fichiers sont dans src/uploads/products/, donc on stocke "products/filename"
+        const filename = path.basename(file.path);
+        return `products/${filename}`;
       });
     }
 
@@ -187,9 +189,20 @@ exports.updateProduct = async (req, res) => {
       });
     }
 
+    // Préparer les données de mise à jour
+    const updateData = { ...req.body };
+    
+    // Gérer les nouvelles images uploadées
+    if (req.files && req.files.length > 0) {
+      updateData.images = req.files.map(file => {
+        const filename = path.basename(file.path);
+        return `products/${filename}`;
+      });
+    }
+
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -268,6 +281,78 @@ exports.addReview = async (req, res) => {
       data: {
         review
       }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Publier un produit
+exports.publishProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Produit non trouvé'
+      });
+    }
+
+    // Vérifier que c'est le propriétaire
+    if (product.producer.toString() !== req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Non autorisé à modifier ce produit'
+      });
+    }
+
+    product.isAvailable = true;
+    await product.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Produit publié avec succès',
+      data: { product }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
+// Dépublier un produit
+exports.unpublishProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Produit non trouvé'
+      });
+    }
+
+    // Vérifier que c'est le propriétaire
+    if (product.producer.toString() !== req.user.id) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Non autorisé à modifier ce produit'
+      });
+    }
+
+    product.isAvailable = false;
+    await product.save();
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Produit dépublié avec succès',
+      data: { product }
     });
   } catch (error) {
     res.status(400).json({

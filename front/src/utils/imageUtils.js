@@ -113,3 +113,48 @@ export const resizeImage = (file, maxWidth = 300, maxHeight = 300, quality = 0.8
     img.src = URL.createObjectURL(file)
   })
 }
+
+/**
+ * Obtient l'URL complète d'une image de produit
+ * @param {string|object} product - Le produit ou le chemin de l'image
+ * @returns {string|null} - L'URL complète de l'image ou null
+ */
+export const getProductImageUrl = (product) => {
+  if (!product) return null
+  
+  // Si product est une string, c'est le chemin direct
+  let imagePath = typeof product === 'string' ? product : null
+  
+  // Si product est un objet, chercher les champs d'image
+  if (typeof product === 'object') {
+    imagePath = product.imageUrl || product.image || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null)
+  }
+  
+  if (!imagePath) return null
+  
+  // Si c'est déjà une URL complète
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  
+  // Si c'est une data URL
+  if (imagePath.startsWith('data:')) {
+    return imagePath
+  }
+  
+  // Construire l'URL complète
+  const baseUrl = API_ORIGIN
+  
+  // Si le chemin commence par /uploads, l'utiliser tel quel
+  if (imagePath.startsWith('/uploads/')) {
+    return `${baseUrl}${imagePath}`
+  }
+  
+  // Si le chemin commence par uploads/, ajouter le slash
+  if (imagePath.startsWith('uploads/')) {
+    return `${baseUrl}/${imagePath}`
+  }
+  
+  // Sinon, ajouter le préfixe /uploads/
+  return `${baseUrl}/uploads/${imagePath}`
+}

@@ -21,8 +21,9 @@ export default function ProtectedRoute({ dashboard = 'any', children }) {
   const hasToken = !!localStorage.getItem(tokenKey)
 
   if (!hasToken) {
-    // Not authenticated for this dashboard → redirect to login, preserve where we came from
-    return <Navigate to="/login" replace state={{ from: location }} />
+    // Not authenticated for this dashboard → redirect to specific login
+    const to = (dashboard === 'admin' || dashboard === 'super-admin') ? '/admin/login' : '/login'
+    return <Navigate to={to} replace state={{ from: location }} />
   }
 
   return children

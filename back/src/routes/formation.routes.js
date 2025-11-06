@@ -40,6 +40,10 @@ const upload = require('../middlewares/upload.middleware');
  */
 router.get('/', formationController.getAllFormations);
 
+// Dedicated endpoints for categories/options placed before parameterized :id to avoid conflicts
+router.get('/categories', formationController.getCategories);
+router.get('/options', formationController.getCategories);
+
 /**
  * @swagger
  * /formations/{id}:

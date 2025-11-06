@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import apiService from '../../services/apiService'
+import { getProfilePictureUrl } from '../../utils/imageUtils'
 
 const AdminProfileModal = ({ isOpen, onClose, user, onUpdated }) => {
   const [firstName, setFirstName] = useState('')
@@ -39,14 +40,27 @@ const AdminProfileModal = ({ isOpen, onClose, user, onUpdated }) => {
   // Onglets pour les sections
   const [activeTab, setActiveTab] = useState('profile')
 
+  // Récupérer l'utilisateur le plus frais depuis le stockage local (fallback si prop non mise à jour)
+  const getStoredUser = () => {
+    try {
+      const raw = localStorage.getItem('adminDashboardUser') || localStorage.getItem('user')
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  }
+
   useEffect(() => {
     if (!isOpen) return
-    setFirstName(user?.firstName || '')
-    setLastName(user?.lastName || '')
-    setPhone(user?.phone || '')
-    setEmail(user?.email || '')
+    const latest = getStoredUser() || user || {}
+    setFirstName(latest?.firstName || '')
+    setLastName(latest?.lastName || '')
+    setPhone(latest?.phone || '')
+    setEmail(latest?.email || '')
     setProfilePicture(null)
-    setPreview('')
+    // Afficher la photo actuelle immédiatement à l'ouverture du modal (depuis le stockage si dispo)
+    const initialUrl = latest?.profilePicture ? getProfilePictureUrl(latest.profilePicture) : ''
+    setPreview(initialUrl)
     setError('')
     setSuccess('')
     setPasswordError('')
@@ -59,6 +73,10 @@ const AdminProfileModal = ({ isOpen, onClose, user, onUpdated }) => {
   const onFileChange = (e) => {
     const file = e.target.files?.[0] || null
     setProfilePicture(file)
+    // Révoquer l'aperçu précédent pour éviter les fuites mémoire
+    if (preview) {
+      try { URL.revokeObjectURL(preview) } catch {}
+    }
     if (file) {
       const url = URL.createObjectURL(file)
       setPreview(url)
@@ -75,13 +93,35 @@ const AdminProfileModal = ({ isOpen, onClose, user, onUpdated }) => {
     try {
       const payload = { firstName, lastName, phone, email }
       if (profilePicture) payload.profilePicture = profilePicture
+
       const res = await apiService.updateMyProfile(payload)
-      const updated = res?.data?.user || { ...user, firstName, lastName, phone, email }
-      if (res?.data?.user?.profilePicture) {
-        updated.profilePicture = res.data.user.profilePicture
+      // Normaliser la réponse potentielle du backend
+      const apiData = res?.data ?? res
+      const updated = apiData?.user ?? apiData ?? { ...user, firstName, lastName, phone, email }
+
+      // Propager l'URL de la photo si renvoyée par l'API
+      if (apiData?.user?.profilePicture) {
+        updated.profilePicture = apiData.user.profilePicture
       }
+
+      // Persister dans le localStorage pour refléter immédiatement dans l'UI
+      try {
+        if (updated) {
+          localStorage.setItem('user', JSON.stringify(updated))
+          if (updated.role === 'admin' || updated.isSuperAdmin === true) {
+            localStorage.setItem('adminDashboardUser', JSON.stringify(updated))
+          }
+          if (updated.isSuperAdmin === true) {
+            localStorage.setItem('superAdminUser', JSON.stringify(updated))
+          }
+        }
+      } catch {}
+
       setSuccess('Profil mis à jour avec succès !')
+
+      // Fermer automatiquement le modal et déclencher le callback d'update (qui peut rafraîchir l'écran)
       if (onUpdated) onUpdated()
+      if (onClose) onClose()
     } catch (err) {
       setError(err?.message || 'Erreur lors de la mise à jour du profil')
     } finally {

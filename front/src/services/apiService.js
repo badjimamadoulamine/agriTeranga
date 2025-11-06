@@ -12,10 +12,7 @@ const API_TIMEOUT = 30000; // 30 secondes
 // Créer une instance axios
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json',
-  }
+  timeout: API_TIMEOUT
 });
 
 // Intercepteur pour ajouter le token à chaque requête
@@ -86,10 +83,15 @@ class ApiService {
    */
   async request(endpoint, options = {}) {
     try {
-      const response = await apiClient.request({
-        url: endpoint,
-        ...options
-      });
+      const cfg = { url: endpoint, ...options };
+      // Si on envoie un FormData, NE PAS définir Content-Type (le navigateur le fera automatiquement)
+      if (cfg.data && typeof FormData !== 'undefined' && cfg.data instanceof FormData) {
+        // Supprimer Content-Type si présent pour laisser le navigateur le gérer
+        if (cfg.headers && cfg.headers['Content-Type']) {
+          delete cfg.headers['Content-Type'];
+        }
+      }
+      const response = await apiClient.request(cfg);
       return response.data;
     } catch (error) {
       console.error('API Error:', error);
@@ -133,8 +135,15 @@ class ApiService {
     });
 
     if (response.status === 'success' && response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const u = response.data.user || {};
+      const isAdmin = u.role === 'admin' || u.isSuperAdmin === true;
+      if (isAdmin) {
+        try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch {}
+        // Les tokens admin doivent être gérés par dashboardLogin ou AdminLogin
+      } else {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(u));
+      }
     }
 
     return response;
@@ -151,8 +160,15 @@ class ApiService {
     });
 
     if (response.status === 'success' && response.data?.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const u = response.data.user || {};
+      const isAdmin = u.role === 'admin' || u.isSuperAdmin === true;
+      if (isAdmin) {
+        try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch {}
+        // Les tokens admin ne doivent pas être posés dans la session publique
+      } else {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(u));
+      }
     }
 
     return response;

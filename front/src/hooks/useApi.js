@@ -425,9 +425,17 @@ export const useFormations = (params = {}) => {
 
       setFormations(formationsArray);
       setTotal(totalCount);
+      // Catégories: utiliser celles renvoyées par l'API, sinon dériver depuis les formations
+      let cats = [];
       if (payload.data && Array.isArray(payload.data.categories)) {
-        setCategories(payload.data.categories);
+        cats = payload.data.categories;
+      } else {
+        const derived = Array.isArray(formationsArray)
+          ? Array.from(new Set(formationsArray.map(f => f && f.category).filter(Boolean)))
+          : [];
+        cats = derived;
       }
+      setCategories(cats);
     } catch (err) {
       setError(err.message);
       setFormations([]);
@@ -481,7 +489,25 @@ export const useFormations = (params = {}) => {
     try {
       setCategoriesLoading(true);
       setCategoriesError(null);
-      const resp = await apiService.getFormationCategories();
+      // 1) Si on a déjà des formations, dériver les catégories localement (évite 400)
+      if (Array.isArray(formations) && formations.length > 0) {
+        const derived = Array.from(new Set(formations.map(f => f && f.category).filter(Boolean)));
+        setCategories(derived);
+        return;
+      }
+      // 2) Sinon tenter les endpoints connus (options puis categories)
+      let resp = null;
+      try {
+        resp = await apiService.getFormationOptions();
+      } catch (e1) {
+        try {
+          resp = await apiService.getFormationCategories();
+        } catch (e2) {
+          // Impossible d'appeler les endpoints, fallback vide (sans erreur bloquante)
+          setCategories([]);
+          return;
+        }
+      }
       const payload = resp || {};
       let cats = [];
       if (payload.data && Array.isArray(payload.data.categories)) cats = payload.data.categories;
@@ -489,13 +515,15 @@ export const useFormations = (params = {}) => {
       else if (Array.isArray(payload)) cats = payload;
       setCategories(cats);
     } catch (err) {
-      console.warn('Could not fetch formation categories:', err.message);
-      setCategoriesError(err.message);
-      setCategories([]);
+      // En cas d'erreur générale, fallback dérivé depuis les formations si possible
+      const derived = Array.isArray(formations) ? Array.from(new Set(formations.map(f => f && f.category).filter(Boolean))) : [];
+      setCategories(derived);
+      // Ne pas afficher d'erreur bloquante dans l'UI pour ce cas
+      setCategoriesError(null);
     } finally {
       setCategoriesLoading(false);
     }
-  }, []);
+  }, [formations]);
 
   useEffect(() => {
     fetchCategories();
@@ -609,7 +637,7 @@ export const useCategories = (type = 'formations') => {
           break;
         case 'formations':
         case 'formation':
-          response = await apiService.getFormationCategories();
+          response = await apiService.getFormationOptions();
           break;
         default:
           throw new Error(`Type de catégorie non supporté: ${type}`);

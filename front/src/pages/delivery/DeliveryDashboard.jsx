@@ -12,24 +12,16 @@ import {
   Truck,
   Calendar,
   Search,
-  Filter,
-  Settings
+  Filter
 } from 'lucide-react';
 import DeliveryLayout from '../../layouts/DeliveryLayout';
 import useDeliveryData from '../../hooks/useDeliveryData';
-import ProfileModal from '../../components/ProfileModal';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  Tooltip,
+  ResponsiveContainer
 } from 'recharts';
 import { toast } from 'react-toastify';
 
@@ -65,7 +57,6 @@ const DeliveryDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState({});
   const [showNotesModal, setShowNotesModal] = useState(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Charger le profil au montage
   useEffect(() => {
@@ -76,15 +67,6 @@ const DeliveryDashboard = () => {
   const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
 
   // Données pour les graphiques
-  const performanceData = [
-    { month: 'Jan', completed: 45, earnings: 125000 },
-    { month: 'Fév', completed: 38, earnings: 98000 },
-    { month: 'Mar', completed: 52, earnings: 143000 },
-    { month: 'Avr', completed: 41, earnings: 118000 },
-    { month: 'Mai', completed: 47, earnings: 135000 },
-    { month: 'Juin', completed: 43, earnings: 128000 },
-  ];
-
   const deliveryStatusData = [
     { name: 'Livrées', value: stats.completedDeliveries || 0 },
     { name: 'En cours', value: stats.pendingDeliveries || 0 },
@@ -172,7 +154,12 @@ const DeliveryDashboard = () => {
 
   if (loading) {
     return (
-      <DeliveryLayout>
+      <DeliveryLayout 
+        profile={profile}
+        onUpdateProfile={updateProfile}
+        onChangePassword={changePassword}
+        onRefreshProfile={refreshProfile}
+      >
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#59C94F]"></div>
         </div>
@@ -182,7 +169,12 @@ const DeliveryDashboard = () => {
 
   if (error) {
     return (
-      <DeliveryLayout>
+      <DeliveryLayout
+        profile={profile}
+        onUpdateProfile={updateProfile}
+        onChangePassword={changePassword}
+        onRefreshProfile={refreshProfile}
+      >
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-600">{error}</p>
         </div>
@@ -191,43 +183,17 @@ const DeliveryDashboard = () => {
   }
 
   return (
-    <DeliveryLayout>
+    <DeliveryLayout
+      profile={profile}
+      onUpdateProfile={updateProfile}
+      onChangePassword={changePassword}
+      onRefreshProfile={refreshProfile}
+    >
       <div className="max-w-7xl mx-auto">
         {/* En-tête */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Livreur</h1>
-            <p className="text-lg text-gray-600">Gérez vos livraisons et suivez vos performances</p>
-          </div>
-          
-          {/* Avatar et profil */}
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">
-                {profile?.firstName} {profile?.lastName}
-              </p>
-              <p className="text-xs text-gray-500">Livreur</p>
-            </div>
-            <button
-              onClick={() => setShowProfileModal(true)}
-              className="relative group"
-            >
-              <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-green-700 transition-colors ring-2 ring-white shadow-lg group-hover:ring-green-400">
-                {profile?.profilePicture ? (
-                  <img 
-                    src={profile.profilePicture} 
-                    alt="Avatar" 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="w-6 h-6 text-white" />
-                )}
-              </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-gray-50">
-                <Settings className="w-3 h-3 text-gray-600 group-hover:text-gray-800" />
-              </div>
-            </button>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Tableau de bord Livreur</h1>
+          <p className="text-lg text-gray-600">Gérez vos livraisons et suivez vos performances</p>
         </div>
 
         {/* Statistiques */}
@@ -622,30 +588,6 @@ const DeliveryDashboard = () => {
 
           {/* Graphiques */}
           <div className="space-y-6">
-            {/* Performance mensuelle */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Performance mensuelle</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="month" stroke="#666" />
-                  <YAxis stroke="#666" />
-                  <Tooltip
-                    formatter={(value, name) => [
-                      name === 'earnings' ? `${value.toLocaleString()} FCFA` : value,
-                      name === 'earnings' ? 'Gains' : 'Livraisons'
-                    ]}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Bar dataKey="completed" fill="#10B981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
             {/* Répartition des statuts */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Répartition des livraisons</h3>
@@ -705,31 +647,6 @@ const DeliveryDashboard = () => {
             </div>
           </div>
         )}
-
-        {/* Avatar cliquable */}
-        <div className="flex justify-end mb-6">
-          <div 
-            onClick={() => setShowProfileModal(true)}
-            className="relative cursor-pointer group"
-          >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold text-lg shadow-lg group-hover:shadow-xl transition-all">
-              {profile?.firstName?.[0] || 'L'}
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md">
-              <Settings className="w-3 h-3 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Modal de profil */}
-        <ProfileModal
-          isOpen={showProfileModal}
-          onClose={() => setShowProfileModal(false)}
-          profile={profile}
-          onUpdateProfile={updateProfile}
-          onChangePassword={changePassword}
-          onRefreshProfile={refreshProfile}
-        />
       </div>
     </DeliveryLayout>
   );

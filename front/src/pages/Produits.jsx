@@ -4,6 +4,7 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useCartOperations } from '../hooks/useCartOperations'
 import apiService from '../services/apiService'
+import { getProductImageUrl } from '../utils/imageUtils'
 
 const Produits = ({ onOpenRegister, onOpenLogin }) => {
   const navigate = useNavigate()
@@ -151,17 +152,15 @@ const Produits = ({ onOpenRegister, onOpenLogin }) => {
               >
                 {/* Image du produit */}
                 <div className="relative h-48 bg-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition-colors overflow-hidden">
-                  {(() => {
-                    const origin = buildOrigin()
-                    let src = produit.imageUrl || produit.image || ''
-                    if (!src && Array.isArray(produit.images) && produit.images[0]) {
-                      const raw = String(produit.images[0] ?? '')
-                      const file = raw.split(/[\\\/]/).pop()
-                      if (file) src = `${origin}/uploads/${file}`
-                    }
-                    if (src) return <img src={src} alt={produit.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    return <span className="text-6xl">🥬</span>
-                  })()}
+                  {getProductImageUrl(produit) ? (
+                    <img 
+                      src={getProductImageUrl(produit)} 
+                      alt={produit.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                    />
+                  ) : (
+                    <span className="text-6xl">🥬</span>
+                  )}
                   {produit.discount && (
                     <div className="absolute top-2 right-2 bg-yellow-400 text-white px-2 py-1 rounded text-sm font-semibold">
                       {produit.discount}
@@ -224,17 +223,15 @@ const Produits = ({ onOpenRegister, onOpenLogin }) => {
                   >
                     {/* Image du produit */}
                     <div className="relative h-48 bg-gray-100 flex items-center justify-center group-hover:bg-gray-50 transition-colors overflow-hidden">
-                      {(() => {
-                        const origin = buildOrigin()
-                        let src = produit.imageUrl || produit.image || ''
-                        if (!src && Array.isArray(produit.images) && produit.images[0]) {
-                          const raw = String(produit.images[0] ?? '')
-                          const file = raw.split(/[\\\/]/).pop()
-                          if (file) src = `${origin}/uploads/${file}`
-                        }
-                        if (src) return <img src={src} alt={produit.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        return <span className="text-6xl">🥬</span>
-                      })()}
+                      {getProductImageUrl(produit) ? (
+                        <img 
+                          src={getProductImageUrl(produit)} 
+                          alt={produit.name} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        />
+                      ) : (
+                        <span className="text-6xl">🥬</span>
+                      )}
                       {/* Badge de réduction */}
                       {produit.discount && (
                         <div className="absolute top-2 right-2 bg-yellow-400 text-white px-2 py-1 rounded text-sm font-semibold">

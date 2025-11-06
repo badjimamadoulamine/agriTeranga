@@ -13,19 +13,24 @@ const authService = {
     const apiUser = response.data?.data?.user || response.data?.user
     const apiToken = response.data?.token
     if (apiToken && apiUser) {
-      localStorage.setItem('token', apiToken)
-      localStorage.setItem('user', JSON.stringify(apiUser))
-      // Stocker aussi les tokens spécifiques selon le rôle
-      const role = apiUser?.role
-      if (role === 'admin') {
+      const isAdmin = apiUser?.role === 'admin' || apiUser?.isSuperAdmin === true
+      if (isAdmin) {
+        // Admins: n'utilisent pas le token générique du site public
+        try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch {}
         localStorage.setItem('adminDashboardToken', apiToken)
         localStorage.setItem('adminDashboardUser', JSON.stringify(apiUser))
-      } else if (role === 'producteur') {
-        localStorage.setItem('producerDashboardToken', apiToken)
-        localStorage.setItem('producerDashboardUser', JSON.stringify(apiUser))
-      } else if (role === 'livreur') {
-        localStorage.setItem('deliveryDashboardToken', apiToken)
-        localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
+      } else {
+        // Utilisateurs publics
+        localStorage.setItem('token', apiToken)
+        localStorage.setItem('user', JSON.stringify(apiUser))
+        const role = apiUser?.role
+        if (role === 'producteur') {
+          localStorage.setItem('producerDashboardToken', apiToken)
+          localStorage.setItem('producerDashboardUser', JSON.stringify(apiUser))
+        } else if (role === 'livreur') {
+          localStorage.setItem('deliveryDashboardToken', apiToken)
+          localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
+        }
       }
     }
     return response.data
@@ -37,19 +42,24 @@ const authService = {
     const apiUser = response.data?.data?.user || response.data?.user
     const apiToken = response.data?.token
     if (apiToken && apiUser) {
-      localStorage.setItem('token', apiToken)
-      localStorage.setItem('user', JSON.stringify(apiUser))
-      // Stocker aussi les tokens spécifiques selon le rôle
-      const role = apiUser?.role
-      if (role === 'admin') {
+      const isAdmin = apiUser?.role === 'admin' || apiUser?.isSuperAdmin === true
+      if (isAdmin) {
+        // Admins: n'utilisent pas le token générique du site public
+        try { localStorage.removeItem('token'); localStorage.removeItem('user'); } catch {}
         localStorage.setItem('adminDashboardToken', apiToken)
         localStorage.setItem('adminDashboardUser', JSON.stringify(apiUser))
-      } else if (role === 'producteur') {
-        localStorage.setItem('producerDashboardToken', apiToken)
-        localStorage.setItem('producerDashboardUser', JSON.stringify(apiUser))
-      } else if (role === 'livreur') {
-        localStorage.setItem('deliveryDashboardToken', apiToken)
-        localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
+      } else {
+        // Utilisateurs publics
+        localStorage.setItem('token', apiToken)
+        localStorage.setItem('user', JSON.stringify(apiUser))
+        const role = apiUser?.role
+        if (role === 'producteur') {
+          localStorage.setItem('producerDashboardToken', apiToken)
+          localStorage.setItem('producerDashboardUser', JSON.stringify(apiUser))
+        } else if (role === 'livreur') {
+          localStorage.setItem('deliveryDashboardToken', apiToken)
+          localStorage.setItem('deliveryDashboardUser', JSON.stringify(apiUser))
+        }
       }
     }
     return response.data
@@ -57,8 +67,16 @@ const authService = {
 
   // Déconnexion
   logout: () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    try {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      localStorage.removeItem('adminDashboardToken')
+      localStorage.removeItem('adminDashboardUser')
+      localStorage.removeItem('producerDashboardToken')
+      localStorage.removeItem('producerDashboardUser')
+      localStorage.removeItem('deliveryDashboardToken')
+      localStorage.removeItem('deliveryDashboardUser')
+    } catch {}
     window.location.href = '/login'
   },
 

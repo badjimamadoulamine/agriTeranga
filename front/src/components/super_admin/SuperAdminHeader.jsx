@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Bell, Search, User, Settings, LogOut, Shield } from 'lucide-react'
+import { getProfilePictureUrl } from '../../utils/imageUtils'
 
 const SuperAdminHeader = ({ user, onOpenProfile, onLogout, onToggleSidebar }) => {
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -92,7 +93,7 @@ const SuperAdminHeader = ({ user, onOpenProfile, onLogout, onToggleSidebar }) =>
               >
                 {user?.profilePicture ? (
                   <img 
-                    src={user.profilePicture} 
+                    src={getProfilePictureUrl(user.profilePicture)} 
                     alt="Profile"
                     className="w-full h-full rounded-full object-cover"
                   />

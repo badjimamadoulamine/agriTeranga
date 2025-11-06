@@ -166,14 +166,17 @@ const ProfileModal = ({
         profileData.profilePicture = profilePicture;
       }
 
-      const success = await onUpdateProfile(profileData);
+      const response = await onUpdateProfile(profileData);
       
-      if (success) {
+      // Vérifier le succès de la mise à jour
+      if (response && response.status === 'success') {
+        toast.success('Profil mis à jour avec succès');
         await onRefreshProfile();
         onClose();
       }
     } catch (error) {
       console.error('Erreur profil:', error);
+      toast.error(error.message || 'Erreur lors de la mise à jour du profil');
     } finally {
       setLoading(false);
     }

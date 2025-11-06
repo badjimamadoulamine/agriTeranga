@@ -173,7 +173,7 @@ router.post('/', protect, restrictTo('producteur'), upload.array('images', 5), p
  *       404:
  *         description: Produit non trouvé
  */
-router.put('/:id', protect, restrictTo('producteur'), productController.updateProduct);
+router.put('/:id', protect, restrictTo('producteur'), upload.array('images', 5), productController.updateProduct);
 
 /**
  * @swagger
@@ -231,5 +231,9 @@ router.delete('/:id', protect, restrictTo('producteur', 'admin'), productControl
  *         description: Avis ajouté
  */
 router.post('/:id/reviews', protect, productController.addReview);
+
+// Routes pour publier/dépublier un produit
+router.patch('/:id/publish', protect, restrictTo('producteur', 'producer'), productController.publishProduct);
+router.patch('/:id/unpublish', protect, restrictTo('producteur', 'producer'), productController.unpublishProduct);
 
 module.exports = router;

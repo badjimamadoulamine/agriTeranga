@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { useCartOperations } from '../hooks/useCartOperations';
 import apiService from '../services/apiService';
+import { getProductImageUrl } from '../utils/imageUtils';
 
 const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
   const { id } = useParams();
@@ -47,20 +48,7 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
   ];
 
   // Helpers d'affichage
-  const imgSrc = (() => {
-    if (!product) return '';
-    const base = import.meta.env.VITE_API_URL;
-    let origin = '';
-    try { origin = new URL(base).origin; } catch { origin = ''; }
-    if (product.imageUrl) return product.imageUrl;
-    if (product.image) return product.image;
-    if (Array.isArray(product.images) && product.images[0]) {
-      const raw = String(product.images[0] ?? '');
-      const file = raw.split(/[\\\/]/).pop();
-      if (file) return `${origin}/uploads/${file}`;
-    }
-    return '';
-  })();
+  const imgSrc = getProductImageUrl(product);
 
   const producerName = product && (product.seller
     || product.producerName
@@ -74,7 +62,7 @@ const ProductDetail = ({ onOpenRegister, onOpenLogin }) => {
       nom: product.name,
       prix: product.price,
       unite: product.unit,
-      image: Array.isArray(product.images) && product.images[0] ? product.images[0] : product.imageUrl || product.image
+      image: getProductImageUrl(product)
     };
     handleAddToCart(cartProduct);
   };
